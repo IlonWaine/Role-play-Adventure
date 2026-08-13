@@ -1,0 +1,559 @@
+/* ==========================================================================
+   ОСНОВНІ СТИЛІ ТА МАКЕТ
+   ========================================================================== */
+:root {
+  --bg-color: #0f1115;
+  --card-bg: #1a1d24;
+  --card-inner-bg: #242832;
+  --border-color: #3d4454;
+  --border-accent: #c59b27;
+  --accent-gold: #f3c649;
+  --text-main: #f0f2f5;
+  --text-muted: #a0a7b5;
+  --hp-bar-bg: #2c1214;
+  --hp-bar-fill: #e53e3e;
+  --btn-delete: #e53e3e;
+  --btn-plus: #2e8b57;
+  --border-radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  overflow-x: hidden; /* Захист від горизонтального скролу на смартфонах */
+  width: 100%;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  font-family: 'Inter', sans-serif;
+  padding: 10px;
+  display: flex;
+  justify-content: center;
+  line-height: 1.4;
+}
+
+.character-sheet {
+  width: 100%;
+  max-width: 1100px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ==========================================================================
+   ПАПКА DM ТА ШАПКА
+   ========================================================================== */
+.dm-action-header {
+  background: #252213;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--border-radius);
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--accent-gold);
+}
+
+.btn-submit {
+  background: var(--border-accent);
+  color: #000;
+  font-weight: 700;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.header-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--border-radius);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.header-row-inputs {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  width: 100%;
+}
+
+.flex-1 { flex: 1; }
+
+.input-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.dm-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.input-name, .input-role {
+  font-family: 'Cinzel', serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  background: var(--card-inner-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 10px;
+  width: 100%;
+  outline: none;
+}
+
+.input-title {
+  font-size: 0.85rem;
+  color: var(--text-main);
+  background: var(--card-inner-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 10px;
+  width: 100%;
+  outline: none;
+}
+
+/* ==========================================================================
+   БОЙОВИЙ БЛОК (HP & AC)
+   ========================================================================== */
+.combat-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 12px;
+}
+
+@media (min-width: 600px) {
+  .combat-bar {
+    display: grid;
+    grid-template-columns: 1fr auto;
+  }
+}
+
+.hp-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.hp-inputs-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hp-input-num {
+  width: 55px;
+  background: var(--card-inner-bg);
+  border: 1px solid var(--border-accent);
+  border-radius: 4px;
+  color: var(--accent-gold);
+  text-align: center;
+  font-size: 1rem;
+  font-weight: bold;
+  padding: 2px;
+  outline: none;
+}
+
+.hp-divider {
+  color: var(--text-muted);
+}
+
+.health-bar-outer {
+  position: relative;
+  width: 100%;
+  height: 20px;
+  background-color: var(--hp-bar-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.health-bar-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #9b1c1c, var(--hp-bar-fill));
+  transition: width 0.3s ease;
+}
+
+.hp-percent-text {
+  position: relative;
+  z-index: 2;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 1px 1px 2px #000;
+}
+
+.hp-quick-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.btn-hp-adj {
+  flex: 1;
+  min-width: 40px;
+  background: var(--card-inner-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 6px 4px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-align: center;
+}
+
+.btn-hp-adj.btn-minus:hover { background: var(--btn-delete); color: #fff; }
+.btn-hp-adj.btn-plus:hover { background: var(--btn-plus); color: #fff; }
+.btn-hp-adj.btn-reset:hover { background: var(--border-accent); color: #000; }
+
+.ac-box {
+  background: var(--card-inner-bg);
+  border: 1px solid var(--border-accent);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@media (min-width: 600px) {
+  .ac-box {
+    flex-direction: column;
+    justify-content: center;
+    min-width: 90px;
+  }
+}
+
+.ac-title { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; }
+
+.ac-input {
+  width: 50px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--accent-gold);
+  color: var(--accent-gold);
+  font-size: 1.3rem;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+}
+
+/* ==========================================================================
+   КАРТКИ ТА ХАРАКТЕРИСТИКИ
+   ========================================================================== */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 12px;
+}
+
+.card-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1rem;
+  color: var(--accent-gold);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 6px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.stats-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.stat-fixed-item {
+  background: var(--card-inner-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stat-name { font-size: 0.8rem; font-weight: 600; }
+
+.stat-val-input {
+  width: 45px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-accent);
+  border-radius: 4px;
+  color: var(--accent-gold);
+  text-align: center;
+  font-weight: bold;
+  font-size: 0.9rem;
+  padding: 2px;
+  outline: none;
+}
+
+/* ==========================================================================
+   УМІННЯ ТА ІНВЕНТАР (ВИНЯТКОВО ДЛЯ МАРКЕРУ СЛОТІВ)
+   ========================================================================== */
+.main-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (min-width: 850px) {
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+/* ВИПРАВЛЕНО: Інпут слотів містить максимум 4 цифри */
+.slots-edit-box {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.short-slot-input {
+  width: 55px; /* Ширина розрахована рівно під 4 цифри */
+  max-width: 55px;
+  background: var(--card-inner-bg);
+  border: 1px solid var(--border-accent);
+  border-radius: 4px;
+  color: var(--accent-gold);
+  text-align: center;
+  font-weight: bold;
+  font-size: 0.85rem;
+  padding: 2px 4px;
+  outline: none;
+}
+
+.btn-add-sm {
+  background: var(--card-inner-bg);
+  border: 1px dashed var(--border-accent);
+  color: var(--accent-gold);
+  font-size: 0.75rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.ability-list, .inventory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ability-edit-card, .inventory-edit-card {
+  background: var(--card-inner-bg);
+  border: 1px solid var(--border-color);
+  padding: 8px;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ability-top-row, .inv-row-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-action-circle {
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.ability-title-input, .inv-name-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.85rem;
+  outline: none;
+  min-width: 0; /* Дозволяє стискатися на вузьких екранах */
+}
+
+.inv-qty-input {
+  width: 50px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--accent-gold);
+  text-align: center;
+  font-weight: bold;
+  font-size: 0.85rem;
+  padding: 2px;
+}
+
+.dm-textarea, .ability-desc-input, .ability-principle-input, .inv-desc-input {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-main);
+  padding: 6px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  width: 100%;
+}
+
+.btn-remove {
+  background: transparent;
+  border: none;
+  color: var(--btn-delete);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   МОНЕТИ
+   ========================================================================== */
+.coins-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.coin-card {
+  background: var(--card-inner-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 8px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.coin-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.coin-input {
+  width: 100%;
+  max-width: 70px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--accent-gold);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 2px;
+  outline: none;
+}
+
+/* ==========================================================================
+   ПОРТРЕТ В МОБІЛЬНОМУ РЕЖИМІ
+   ========================================================================== */
+.portrait-upload-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.drop-zone {
+  border: 2px dashed var(--border-accent);
+  border-radius: 8px;
+  background: var(--card-inner-bg);
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.drop-text { font-size: 0.85rem; font-weight: 600; color: var(--accent-gold); }
+.drop-hint { font-size: 0.7rem; color: var(--text-muted); }
+.file-input-hidden { display: none; }
+
+.portrait-preview-wrapper {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.portrait-img-preview {
+  width: 180px;
+  height: 270px; /* 1024x1536 в масштабі */
+  object-fit: cover;
+  border-radius: 6px;
+  border: 2px solid var(--border-accent);
+}
+
+.btn-remove-photo {
+  background: var(--btn-delete);
+  color: #fff;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   МЕДІА-ЗАПИТИ ДЛЯ СМАРТФОНІВ (ВУЗЬКІ ЕКРАНИ < 480px)
+   ========================================================================== */
+@media (max-width: 480px) {
+  .header-row-inputs {
+    flex-direction: column; /* Ім'я та Роль стають стовпчиком */
+  }
+  
+  .dm-title-text {
+    font-size: 0.85rem;
+  }
+  
+  .stats-container {
+    grid-template-columns: repeat(2, 1fr); /* 2 колонки характеристик на мобільному */
+  }
+}

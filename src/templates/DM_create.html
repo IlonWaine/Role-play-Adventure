@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DM Story Builder & Party Manager</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #0d0f12; color: #e2e8f0; font-family: system-ui, sans-serif; }
+    .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #161920; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #d97706; }
+    .bg-card { background-color: #161920; }
+    .bg-element { background-color: #1f242d; }
+  </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+  <header class="bg-card border-b border-gray-800 px-6 py-3 flex items-center justify-between shadow-lg">
+    <div class="flex items-center space-x-3">
+      <i class="fa-solid fa-book-bookmark text-amber-500 text-xl"></i>
+      <h1 class="text-lg font-bold text-amber-400">DM Campaign & Story Hub</h1>
+    </div>
+    <div class="flex items-center gap-3">
+      <button onclick="saveCampaignState()" class="bg-amber-600 hover:bg-amber-500 text-gray-950 font-bold px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5">
+        <i class="fa-solid fa-floppy-disk"></i> Зберегти кампанію
+      </button>
+    </div>
+  </header>
+
+  <main class="flex-1 grid grid-cols-12 gap-4 p-4 overflow-hidden">
+
+    <section class="col-span-12 lg:col-span-4 flex flex-col gap-4 overflow-hidden">
+      
+      <div class="bg-card rounded-xl border border-gray-800 flex-1 flex flex-col overflow-hidden shadow-xl">
+        <div class="p-3 border-b border-gray-800 bg-gray-900/60 flex justify-between items-center">
+          <h2 class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+            <i class="fa-solid fa-users-gear"></i> Групи та Персонажі
+          </h2>
+          <button onclick="openCreatePartyModal()" class="text-xs bg-amber-600/20 text-amber-300 border border-amber-500/30 hover:bg-amber-600/30 px-2 py-1 rounded transition">
+            + Нова група
+          </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar" id="partyContainer">
+          </div>
+      </div>
+
+    </section>
+
+
+    <section class="col-span-12 lg:col-span-8 bg-card rounded-xl border border-gray-800 flex flex-col overflow-hidden shadow-xl">
+      
+      <div class="p-3 border-b border-gray-800 bg-gray-900/60 flex justify-between items-center">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-scroll text-amber-400"></i>
+          <h2 class="text-xs font-bold text-amber-400 uppercase tracking-wider">Сценарій: Глава 1 — "Темний Ліс"</h2>
+        </div>
+        <button onclick="addNewSceneBlock()" class="bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 text-xs px-3 py-1 rounded transition flex items-center gap-1">
+          <i class="fa-solid fa-plus text-amber-400"></i> Додати сцену
+        </button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar" id="storyTimeline">
+        
+        <div class="bg-element rounded-xl border border-gray-800 p-4 space-y-3 relative shadow-md">
+          <div class="flex justify-between items-center border-b border-gray-700/60 pb-2">
+            <span class="text-xs font-bold text-amber-400 flex items-center gap-2">
+              <i class="fa-solid fa-map-location-dot"></i> Сцена 1: Закинута таверна "Сліпий Крук"
+            </span>
+            <span class="text-[10px] bg-gray-800 px-2 py-0.5 rounded text-gray-400">Локація / Дослідження</span>
+          </div>
+          
+          <p class="text-xs text-gray-300 italic bg-gray-900/50 p-2.5 rounded border border-gray-800">
+            "Занедбана будівля з проваленим дахом. Повітря пахне сирістю та старим деревом. У кутку лежить розкрита скриня..."
+          </p>
+
+          <div class="mt-3 bg-gray-900/80 p-3 rounded-lg border border-amber-500/20">
+            <div class="text-[11px] font-bold text-amber-300 mb-2 flex items-center gap-1.5">
+              <i class="fa-solid fa-sack-dollar"></i> Знайдений лут у локації:
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div class="flex justify-between items-center bg-gray-800 p-2 rounded border border-gray-700">
+                <div>
+                  <div class="text-xs font-bold text-gray-100">🗡️ Старовинний Кинжал</div>
+                  <div class="text-[10px] text-gray-400">1d4+1 колючої шкоди</div>
+                </div>
+                <button onclick="quickDropLoot('Старовинний Кинжал')" class="text-[10px] bg-amber-600 hover:bg-amber-500 text-gray-950 font-bold px-2 py-1 rounded transition">
+                  🎁 Видати
+                </button>
+              </div>
+
+              <div class="flex justify-between items-center bg-gray-800 p-2 rounded border border-gray-700">
+                <div>
+                  <div class="text-xs font-bold text-gray-100">🧪 Зілля малого лікування</div>
+                  <div class="text-[10px] text-gray-400">Відновлює 2d4+2 HP</div>
+                </div>
+                <button onclick="quickDropLoot('Зілля малого лікування')" class="text-[10px] bg-amber-600 hover:bg-amber-500 text-gray-950 font-bold px-2 py-1 rounded transition">
+                  🎁 Видати
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-element rounded-xl border border-red-900/40 p-4 space-y-3 relative shadow-md">
+          <div class="flex justify-between items-center border-b border-gray-700/60 pb-2">
+            <span class="text-xs font-bold text-red-400 flex items-center gap-2">
+              <i class="fa-solid fa-skull"></i> Сцена 2: Засідка Гоблінів (Бойова зустріч)
+            </span>
+            <span class="text-[10px] bg-red-950/60 text-red-300 px-2 py-0.5 rounded border border-red-800/40">Бой</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+            
+            <div class="bg-gray-900 p-3 rounded-lg border border-gray-800 space-y-2">
+              <div class="flex justify-between items-center">
+                <span class="text-xs font-bold text-gray-200">👹 Гоблін-Ватажок</span>
+                <span class="text-xs font-bold text-red-400">КД: 13</span>
+              </div>
+              
+              <div class="flex items-center justify-between bg-gray-800 p-1.5 rounded border border-gray-700">
+                <span class="text-[11px] text-gray-400">HP:</span>
+                <div class="flex items-center gap-1">
+                  <button onclick="updateEnemyHP('goblin1', -5)" class="px-1.5 py-0.5 bg-red-950 hover:bg-red-900 text-red-300 rounded text-[10px] font-bold border border-red-800">-5</button>
+                  <button onclick="updateEnemyHP('goblin1', -1)" class="px-1.5 py-0.5 bg-red-950 hover:bg-red-900 text-red-300 rounded text-[10px] font-bold border border-red-800">-1</button>
+                  <span id="goblin1-hp" class="text-xs font-bold text-emerald-400 px-2">12 / 12</span>
+                  <button onclick="updateEnemyHP('goblin1', 1)" class="px-1.5 py-0.5 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 rounded text-[10px] font-bold border border-emerald-800">+1</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-gray-900 p-3 rounded-lg border border-gray-800 space-y-2">
+              <div class="flex justify-between items-center">
+                <span class="text-xs font-bold text-gray-200">🏹 Гоблін-Лучник</span>
+                <span class="text-xs font-bold text-red-400">КД: 12</span>
+              </div>
+              
+              <div class="flex items-center justify-between bg-gray-800 p-1.5 rounded border border-gray-700">
+                <span class="text-[11px] text-gray-400">HP:</span>
+                <div class="flex items-center gap-1">
+                  <button onclick="updateEnemyHP('goblin2', -5)" class="px-1.5 py-0.5 bg-red-950 hover:bg-red-900 text-red-300 rounded text-[10px] font-bold border border-red-800">-5</button>
+                  <button onclick="updateEnemyHP('goblin2', -1)" class="px-1.5 py-0.5 bg-red-950 hover:bg-red-900 text-red-300 rounded text-[10px] font-bold border border-red-800">-1</button>
+                  <span id="goblin2-hp" class="text-xs font-bold text-emerald-400 px-2">7 / 7</span>
+                  <button onclick="updateEnemyHP('goblin2', 1)" class="px-1.5 py-0.5 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 rounded text-[10px] font-bold border border-emerald-800">+1</button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // State: Groups & Players Assignment
+    let campaignData = {
+      parties: [
+        {
+          id: 'party-1',
+          name: 'Основна група (П\'ятниця)',
+          players: [
+            { id: 'p1', charName: 'Арагорн', className: 'Воїн 5', userAssigned: 'Максим (Telegram: @max)', hp: 28, maxHp: 30 },
+            { id: 'p2', charName: 'Леголас', className: 'Слідопит 5', userAssigned: 'Олена', hp: 18, maxHp: 18 }
+          ]
+        },
+        {
+          id: 'party-2',
+          name: 'Резервна група (Ваншот)',
+          players: [
+            { id: 'p3', charName: 'Ґімлі', className: 'Варвар 3', userAssigned: 'Олексій', hp: 35, maxHp: 35 }
+          ]
+        }
+      ],
+      enemiesHP: {
+        goblin1: { current: 12, max: 12 },
+        goblin2: { current: 7, max: 7 }
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderParties();
+    });
+
+    // Render Parties and Characters
+    function renderParties() {
+      const container = document.getElementById('partyContainer');
+      container.innerHTML = '';
+
+      campaignData.parties.forEach(party => {
+        const partyBox = document.createElement('div');
+        partyBox.className = 'bg-gray-900 rounded-lg p-3 border border-gray-800 space-y-2';
+        
+        let playersHtml = '';
+        party.players.forEach(p => {
+          playersHtml += `
+            <div class="bg-gray-800/80 p-2 rounded border border-gray-700/60 flex justify-between items-center text-xs">
+              <div>
+                <span class="font-bold text-amber-300">${p.charName}</span> 
+                <span class="text-[10px] text-gray-400">(${p.className})</span>
+                <div class="text-[10px] text-emerald-400">👤 Гравець: ${p.userAssigned || 'Не призначено'}</div>
+              </div>
+              <button onclick="editPlayerAssignment('${party.id}', '${p.id}')" class="text-gray-400 hover:text-amber-400 text-xs px-1">
+                <i class="fa-solid fa-pen"></i>
+              </button>
+            </div>
+          `;
+        });
+
+        partyBox.innerHTML = `
+          <div class="flex justify-between items-center border-b border-gray-800 pb-1.5">
+            <span class="text-xs font-bold text-amber-400"><i class="fa-solid fa-shield-halved"></i> ${party.name}</span>
+            <button onclick="addPlayerToParty('${party.id}')" class="text-[10px] bg-gray-800 hover:bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded border border-gray-700">
+              + Персонаж
+            </button>
+          </div>
+          <div class="space-y-1.5 pt-1">
+            ${playersHtml || '<p class="text-[10px] text-gray-500 italic">Немає персонажів у цій групі</p>'}
+          </div>
+        `;
+
+        container.appendChild(partyBox);
+      });
+    }
+
+    // Interactive Enemy HP Manager
+    function updateEnemyHP(enemyId, delta) {
+      const enemy = campaignData.enemiesHP[enemyId];
+      if (!enemy) return;
+
+      enemy.current = Math.max(0, Math.min(enemy.max, enemy.current + delta));
+      
+      const hpEl = document.getElementById(`${enemyId}-hp`);
+      hpEl.innerText = `${enemy.current} / ${enemy.max}`;
+
+      if (enemy.current === 0) {
+        hpEl.className = 'text-xs font-bold text-red-500 line-through px-2';
+      } else if (enemy.current < enemy.max / 2) {
+        hpEl.className = 'text-xs font-bold text-amber-400 px-2';
+      } else {
+        hpEl.className = 'text-xs font-bold text-emerald-400 px-2';
+      }
+    }
+
+    // Quick Loot Drop Modal / Action
+    function quickDropLoot(itemName) {
+      // Gather all available characters
+      let options = '';
+      campaignData.parties.forEach(party => {
+        party.players.forEach(p => {
+          options += `${p.charName} (${p.userAssigned})\n`;
+        });
+      });
+
+      const chosen = prompt(`Оберіть кому передати [${itemName}]:\nВведіть ім'я персонажа:\n\nДоступні:\n${options}`);
+      if (chosen) {
+        alert(`Успішно! Предмет "${itemName}" передано гравцю: ${chosen}`);
+      }
+    }
+
+    // Add Player Functionality
+    function addPlayerToParty(partyId) {
+      const charName = prompt("Введіть ім'я персонажа (напр., Гандальф):");
+      if (!charName) return;
+      const userName = prompt("Призначте гравця (напр., Сергій чи @telegram):");
+
+      const party = campaignData.parties.find(p => p.id === partyId);
+      if (party) {
+        party.players.push({
+          id: 'p_' + Date.now(),
+          charName: charName,
+          className: 'Новачок 1',
+          userAssigned: userName || 'Вільний слот',
+          hp: 10,
+          maxHp: 10
+        });
+        renderParties();
+      }
+    }
+
+    function openCreatePartyModal() {
+      const name = prompt("Назва нової групи (напр., Група Неділя):");
+      if (name) {
+        campaignData.parties.push({
+          id: 'party_' + Date.now(),
+          name: name,
+          players: []
+        });
+        renderParties();
+      }
+    }
+
+    function saveCampaignState() {
+      alert("Сценарій та стан персонажів збережено!");
+    }
+  </script>
+</body>
+</html>

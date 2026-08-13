@@ -1,0 +1,447 @@
+/* ПАЛІТРА З ВИСОКИМ КОНТРАСТОМ ТА ЧИТАБЕЛЬНІСТЮ */
+:root {
+  --bg-color: #0f1115;
+  --card-bg: #1a1d24;
+  --card-inner-bg: #242832;
+  --border-color: #3d4454;
+  --border-accent: #c59b27;
+  --accent-gold: #f3c649;
+  --text-main: #f0f2f5;
+  --text-muted: #a0a7b5;
+  --hp-bar-bg: #2c1214;
+  --hp-bar-fill: #e53e3e;
+  --hp-bar-fill-low: #ff2a2a;
+  --border-radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  font-family: 'Inter', sans-serif;
+  padding: 16px;
+  display: flex;
+  justify-content: center;
+  line-height: 1.5;
+}
+
+.character-sheet {
+  width: 100%;
+  max-width: 1100px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ШАПКА */
+.header-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--border-radius);
+  padding: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editable-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-name {
+  font-family: 'Cinzel', serif;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  background: var(--card-inner-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 12px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.input-title {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  background: var(--card-inner-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 12px;
+  width: 100%;
+  outline: none;
+}
+
+.readonly-title {
+  background: transparent;
+  border-color: transparent;
+  cursor: default;
+}
+
+.input-name:focus {
+  border-color: var(--accent-gold);
+}
+
+/* БОЙОВИЙ БЛОК */
+.combat-bar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 14px;
+  align-items: center;
+}
+
+.hp-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.hp-text { color: var(--text-main); }
+.hp-values { color: var(--accent-gold); }
+
+.health-bar-outer {
+  width: 100%;
+  height: 22px;
+  background-color: var(--hp-bar-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.health-bar-inner {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #9b1c1c, var(--hp-bar-fill));
+  border-radius: 12px 0 0 12px;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+
+.hp-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.btn-hp {
+  background: var(--card-inner-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.btn-hp:hover {
+  background: #2e3442;
+  border-color: var(--accent-gold);
+}
+
+.ac-box {
+  background: var(--card-inner-bg);
+  border: 1px solid var(--border-accent);
+  border-radius: 8px;
+  padding: 8px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+}
+
+.ac-title {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.ac-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+
+/* КАРТКИ */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 16px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+.card-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1.1rem;
+  color: var(--accent-gold);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ХАРАКТЕРИСТИКИ */
+.stats-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.stat-item {
+  background: var(--card-inner-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stat-name {
+  font-size: 0.85rem;
+  color: var(--text-main);
+}
+
+.stat-val {
+  font-weight: 700;
+  color: var(--accent-gold);
+  font-size: 1rem;
+}
+
+/* СІТКА */
+.main-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (min-width: 850px) {
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+/* УМІННЯ */
+.ability-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ability-item {
+  background: var(--card-inner-bg);
+  border-left: 3px solid var(--accent-gold);
+  border-top: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  padding: 10px 12px;
+  border-radius: 0 6px 6px 0;
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+
+.ability-title {
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 2px;
+}
+
+/* ІНВЕНТАР */
+.inventory-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inventory-item {
+  background: var(--card-inner-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+
+.item-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-action {
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.btn-action:hover {
+  background: var(--card-bg);
+  border-color: var(--border-color);
+}
+
+/* МОНЕТИ */
+.coins-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.coin-card {
+  background: var(--card-inner-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+}
+
+.coin-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.coin-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-coin {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.btn-coin:hover { border-color: var(--accent-gold); }
+
+.coin-val {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--accent-gold);
+  min-width: 32px;
+  text-align: center;
+}
+
+.converter-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.btn-convert {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-convert:hover {
+  color: var(--accent-gold);
+  border-color: var(--border-accent);
+}
+
+/* АКОРДЕОН */
+.collapsible-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.collapsible-header:hover { opacity: 0.9; }
+
+.toggle-icon {
+  font-size: 0.9rem;
+  transition: transform 0.2s;
+}
+
+.collapsed .toggle-icon { transform: rotate(-90deg); }
+
+.collapsible-content {
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+  max-height: 500px;
+  opacity: 1;
+}
+
+.collapsed + .collapsible-content {
+  max-height: 0;
+  opacity: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.backstory-text {
+  font-size: 0.9rem;
+  color: var(--text-main);
+  background: var(--card-inner-bg);
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  line-height: 1.6;
+}
+
+.portrait-img {
+  width: 100%;
+  height: 240px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  display: block;
+}

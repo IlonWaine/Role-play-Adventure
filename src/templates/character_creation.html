@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DM: Створення та Редагування Персонажа</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/character_creation_style.css">
+</head>
+<body>
+
+  <div class="character-sheet dm-mode">
+
+    <div class="dm-action-header">
+      <span class="dm-title-text">🧙‍♂️ <strong>Панель DM</strong></span>
+      <button type="button" class="btn-submit" onclick="saveCharacterData()">💾 Зберегти</button>
+    </div>
+
+    <header class="header-card">
+      <div class="header-row-inputs">
+        <div class="input-field-group flex-1">
+          <label class="dm-label">Ім'я персонажа</label>
+          <input type="text" class="input-name" id="dm-char-name" placeholder="Введіть ім'я..." oninput="saveDraft()">
+        </div>
+        <div class="input-field-group flex-1">
+          <label class="dm-label">Роль / Клас</label>
+          <input type="text" class="input-role" id="dm-char-role" placeholder="Наприклад: Воїн / Маг..." oninput="saveDraft()">
+        </div>
+      </div>
+      <div class="input-field-group session-field">
+        <label class="dm-label">Ігрова Сесія (D&D Room)</label>
+        <input type="text" class="input-title" id="dm-session" placeholder="Наприклад: #dnd-session-1" oninput="saveDraft()">
+      </div>
+    </header>
+
+    <section class="combat-bar">
+      <div class="hp-container">
+        <div class="hp-header">
+          <span class="hp-text">❤️ HP (Поточне / Загальне)</span>
+          <div class="hp-inputs-group">
+            <input type="number" id="dm-current-hp" class="hp-input-num" placeholder="0" oninput="updateHealthBar()">
+            <span class="hp-divider">/</span>
+            <input type="number" id="dm-max-hp" class="hp-input-num" placeholder="0" oninput="updateHealthBar()">
+          </div>
+        </div>
+
+        <div class="health-bar-outer">
+          <div class="health-bar-inner" id="hp-bar-fill"></div>
+          <span class="hp-percent-text" id="hp-percent-text">0%</span>
+        </div>
+
+        <div class="hp-quick-buttons">
+          <button type="button" class="btn-hp-adj btn-minus" onclick="adjustHP(-5)">-5</button>
+          <button type="button" class="btn-hp-adj btn-minus" onclick="adjustHP(-1)">-1</button>
+          <button type="button" class="btn-hp-adj btn-plus" onclick="adjustHP(+1)">+1</button>
+          <button type="button" class="btn-hp-adj btn-plus" onclick="adjustHP(+5)">+5</button>
+          <button type="button" class="btn-hp-adj btn-reset" onclick="resetHPToMax()" title="Відновити до максимуму">❤️ Full</button>
+        </div>
+      </div>
+
+      <div class="ac-box">
+        <span class="ac-title">🛡️ AC</span>
+        <input type="number" id="dm-ac" class="ac-input" placeholder="10">
+      </div>
+    </section>
+
+    <section class="card stats-card">
+      <div class="card-title">
+        <span>Характеристики</span>
+      </div>
+      <div class="stats-container" id="dm-stats-container">
+        </div>
+    </section>
+
+    <main class="main-grid">
+
+      <div class="card">
+        <div class="card-title">
+          <span>🪄 Уміння</span>
+          <button type="button" class="btn-add-sm" onclick="addAbilityRow()">+ Додати</button>
+        </div>
+        <div class="ability-list" id="dm-ability-list">
+          </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>🎒 Інвентар</span>
+          <div class="slots-edit-box">
+            <span>Слотів:</span>
+            <input type="number" id="dm-max-slots" class="short-slot-input" placeholder="10" min="0" max="9999" oninput="if(this.value.length>4) this.value=this.value.slice(0,4);">
+          </div>
+          <button type="button" class="btn-add-sm" onclick="addInventoryRow()">+ Додати</button>
+        </div>
+        <div class="inventory-list" id="dm-inventory-list">
+          </div>
+      </div>
+
+    </main>
+
+    <section class="card">
+      <h2 class="card-title">🪙 Монети</h2>
+      <div class="coins-grid">
+        <div class="coin-card">
+          <span class="coin-label">🟡 Золоті (GP)</span>
+          <input type="number" id="dm-gp" class="coin-input" placeholder="0" min="0">
+        </div>
+        <div class="coin-card">
+          <span class="coin-label">⚪ Срібні (SP)</span>
+          <input type="number" id="dm-sp" class="coin-input" placeholder="0" min="0">
+        </div>
+        <div class="coin-card">
+          <span class="coin-label">🟤 Мідні (CP)</span>
+          <input type="number" id="dm-cp" class="coin-input" placeholder="0" min="0">
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="card-title">📜 Передісторія</h2>
+      <textarea id="dm-backstory" class="dm-textarea auto-expand" rows="3" placeholder="Введіть історію персонажа..."></textarea>
+    </section>
+
+    <footer class="card">
+      <h2 class="card-title">🖼️ Портрет (1024×1536)</h2>
+      <div class="portrait-upload-container">
+        <div class="drop-zone" id="drop-zone">
+          <p class="drop-text">📁 Перетягніть фото або натисніть</p>
+          <span class="drop-hint">(Рекомендовано: 1024×1536)</span>
+          <input type="file" id="portrait-file-input" accept="image/*" class="file-input-hidden" onchange="handleFileSelect(event)">
+        </div>
+
+        <div class="input-field-group margin-top-10">
+          <label class="dm-label">Або введіть URL посилання:</label>
+          <input type="url" id="dm-portrait-url" placeholder="https://example.com/photo.jpg" oninput="handleUrlInput()">
+        </div>
+
+        <div class="portrait-preview-wrapper" id="preview-wrapper">
+          <img class="portrait-img-preview" id="dm-portrait-preview" src="" alt="Прев'ю відсутнє">
+          <button type="button" class="btn-remove-photo" id="btn-remove-photo" onclick="removePortrait()">🗑️ Видалити фото</button>
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+  <script src="js/character_creation_logic.js"></script>
+</body>
+</html>

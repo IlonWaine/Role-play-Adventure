@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>D&D Nexus — Головне Меню</title>
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <link rel="stylesheet" href="css/Menu_style.css">
+</head>
+<body>
+
+  <div class="app-card">
+    
+    <header class="app-header">
+      <div class="brand">
+        <i class="fa-solid fa-dice-d20 brand-icon"></i>
+        <h1 class="brand-title">D&D Nexus Hub</h1>
+      </div>
+      <button id="backBtn" class="btn-back hidden">
+        <i class="fa-solid fa-arrow-left"></i> Назад
+      </button>
+    </header>
+
+    <main class="app-content">
+
+      <section id="roleStep" class="step-section">
+        <div class="section-title text-center">
+          <h2>Оберіть вашу роль у грі</h2>
+          <p>Виберіть відповідний режим для початку</p>
+        </div>
+
+        <div class="grid grid-2 max-w-2xl">
+          <div class="card-option hover-gold" data-role="dm">
+            <div class="icon-box gold">
+              <i class="fa-solid fa-crown"></i>
+            </div>
+            <h3>Dungeon Master (DM)</h3>
+            <p>Керування кампанією, створення персонажів, розробка сценарію та ведення live-сесії.</p>
+          </div>
+
+          <div class="card-option hover-blue" data-role="player">
+            <div class="icon-box blue">
+              <i class="fa-solid fa-user-shield"></i>
+            </div>
+            <h3>Гравець</h3>
+            <p>Швидкий перегляд своїх персонажів за ID або вхід у live-сесію майстра.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="dmStep" class="step-section hidden">
+        
+        <div id="dmAuthPanel" class="auth-box max-w-md">
+          <div class="auth-tabs">
+            <button id="tabLoginBtn" class="tab-btn active">Вхід DM</button>
+            <button id="tabRegisterBtn" class="tab-btn">Створити акаунт</button>
+          </div>
+
+          <form id="dmLoginForm" class="auth-form">
+            <h3>Авторизація Майстра</h3>
+            <div class="form-group">
+              <label for="dmLoginEmail">Email / Логін</label>
+              <input type="email" id="dmLoginEmail" required placeholder="dm@nexus.com">
+            </div>
+            <div class="form-group">
+              <label for="dmLoginPass">Пароль</label>
+              <input type="password" id="dmLoginPass" required placeholder="••••••••">
+            </div>
+            <button type="submit" class="btn btn-gold">Увійти</button>
+          </form>
+
+          <form id="dmRegisterForm" class="auth-form hidden">
+            <h3>Реєстрація Нового DM</h3>
+            <div class="form-group">
+              <label for="dmRegName">Ім'я Майстра / Нікнейм</label>
+              <input type="text" id="dmRegName" required placeholder="Master_Dungeon">
+            </div>
+            <div class="form-group">
+              <label for="dmRegEmail">Email</label>
+              <input type="email" id="dmRegEmail" required placeholder="dm@nexus.com">
+            </div>
+            <div class="form-group">
+              <label for="dmRegPass">Пароль</label>
+              <input type="password" id="dmRegPass" required placeholder="••••••••">
+            </div>
+            <button type="submit" class="btn btn-gold">Зареєструватися</button>
+          </form>
+        </div>
+
+        <div id="dmDashboard" class="hidden">
+          <div class="section-title text-center">
+            <h2 class="text-gold"><i class="fa-solid fa-crown"></i> Панель Dungeon Master</h2>
+            <p id="dmWelcomeText">Вітаємо, Майстре!</p>
+          </div>
+
+          <div class="grid grid-3 max-w-3xl">
+            <div class="card-action hover-gold" onclick="navigateTo('create_character')">
+              <div class="icon-box gold-small"><i class="fa-solid fa-user-plus"></i></div>
+              <h4>Створення персонажа</h4>
+              <p>Конструктор характеристик, класу та прив'язка до Player ID.</p>
+            </div>
+
+            <div class="card-action hover-gold" onclick="navigateTo('story_builder')">
+              <div class="icon-box gold-small"><i class="fa-solid fa-book-open"></i></div>
+              <h4>Створення історії</h4>
+              <p>Конструктор сцен, створення груп гравців, ворогів та квестів.</p>
+            </div>
+
+            <div class="card-action live-card" onclick="navigateTo('live_session')">
+              <div class="icon-box gold-small"><i class="fa-solid fa-play"></i></div>
+              <h4>Почати гру (Live)</h4>
+              <p>Запуск інтерактивного дашборду для керування грою.</p>
+            </div>
+          </div>
+          
+          <div class="text-center margin-top-lg">
+            <button id="dmLogoutBtn" class="btn-text text-danger">Вийти з акаунту DM</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="playerStep" class="step-section hidden max-w-2xl">
+        <div class="section-title text-center">
+          <h2 class="text-blue"><i class="fa-solid fa-user-shield"></i> Меню Гравця</h2>
+          <p>Оберіть потрібну дію</p>
+        </div>
+
+        <div class="grid grid-2">
+          <div class="card-option hover-blue" id="btnPlayerModeView">
+            <div class="icon-box blue"><i class="fa-solid fa-id-card"></i></div>
+            <h3>Перегляд своїх персонажів</h3>
+            <span class="badge badge-success">Без верифікації / дозволу DM</span>
+            <p>Перегляд картки персонажа, інвентарю та заклинань за Player ID.</p>
+          </div>
+
+          <div class="card-option hover-gold" id="btnPlayerModeJoin">
+            <div class="icon-box gold"><i class="fa-solid fa-tower-broadcast"></i></div>
+            <h3>Підключитися до Live-сесії</h3>
+            <span class="badge badge-warning">Потрібен Room Code від DM</span>
+            <p>Участь у грі в реальному часі, отримання предметів та спільні бої.</p>
+          </div>
+        </div>
+
+        <div id="viewByIdSubpanel" class="subpanel border-blue hidden">
+          <div class="subpanel-header">
+            <h4><i class="fa-solid fa-magnifying-glass"></i> Введіть ваш Player ID:</h4>
+            <span class="text-subtle">Автономний режим</span>
+          </div>
+          <div class="input-group">
+            <input type="text" id="playerIdOnlyInput" placeholder="напр., max_2024 або #P-8821">
+            <button id="btnSearchChar" class="btn btn-blue">Пошук</button>
+          </div>
+          <div id="viewOnlyCharList" class="character-list custom-scrollbar"></div>
+        </div>
+
+        <div id="joinSessionSubpanel" class="subpanel border-gold hidden">
+          <div class="subpanel-header">
+            <h4><i class="fa-solid fa-plug"></i> Підключення до сесії DM:</h4>
+            <span class="text-gold-subtle">Live синхронізація</span>
+          </div>
+          <div class="grid grid-2 gap-sm">
+            <div class="form-group">
+              <label>Код кімнати (Room Code):</label>
+              <input type="text" id="liveSessionCodeInput" placeholder="X89A12" class="text-center font-mono uppercase">
+            </div>
+            <div class="form-group">
+              <label>Ваш Player ID:</label>
+              <input type="text" id="livePlayerIdInput" placeholder="max_2024">
+            </div>
+          </div>
+          <button id="btnConnectLive" class="btn btn-gold width-full">Приєднатися до сесії</button>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="app-footer">
+      D&D Companion App v1.0 — Безкоштовний відкритий інструмент
+    </footer>
+  </div>
+
+  <script src="js/Menu_logic.js"></script>
+</body>
+</html>

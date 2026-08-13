@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>D&D Лист Персонажа</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/character_style.css">
+</head>
+<body>
+
+  <div class="character-sheet">
+
+    <header class="header-card">
+      <div class="editable-header">
+        <input type="text" class="input-name" value="Козак Крутивус" placeholder="Ім'я персонажа..." id="char-name">
+        <input type="text" class="input-title readonly-title" value="Сесія: #dnd-game-1" readonly id="char-title">
+      </div>
+    </header>
+
+    <section class="combat-bar">
+      <div class="hp-container">
+        <div class="hp-header">
+          <span class="hp-text">❤️ Здоров'я</span>
+          <span class="hp-values"><span id="current-hp">16</span> / <span id="max-hp">23</span></span>
+        </div>
+        <div class="health-bar-outer">
+          <div class="health-bar-inner" id="hp-bar-fill"></div>
+        </div>
+        <div class="hp-controls">
+          <button class="btn-hp" onclick="changeHP(-5)">-5</button>
+          <button class="btn-hp" onclick="changeHP(-1)">-1</button>
+          <button class="btn-hp" onclick="changeHP(1)">+1</button>
+          <button class="btn-hp" onclick="changeHP(5)">+5</button>
+        </div>
+      </div>
+
+      <div class="ac-box">
+        <span class="ac-title">🛡️ Захист</span>
+        <span class="ac-value" id="ac-val">13</span>
+      </div>
+    </section>
+
+    <section class="card stats-card">
+      <h2 class="card-title">Характеристики</h2>
+      <div class="stats-container" id="stats-container">
+        </div>
+    </section>
+
+    <main class="main-grid">
+
+      <div class="card">
+        <h2 class="card-title">Уміння</h2>
+        <ul class="ability-list" id="ability-list">
+          </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>🎒 Предмети</span>
+          <span style="font-size: 0.85rem; color: var(--text-muted);" id="slot-count">Слоти: 0 / 8</span>
+        </div>
+        <ul class="inventory-list" id="inventory-list">
+          </ul>
+      </div>
+
+    </main>
+
+    <section class="card">
+      <h2 class="card-title">🪙 Гаманець</h2>
+      <div class="coins-grid">
+        <div class="coin-card">
+          <span class="coin-label">🟡 Золоті (GP)</span>
+          <div class="coin-controls">
+            <button class="btn-coin" onclick="changeCoin('gp', -1)">-</button>
+            <span class="coin-val" id="gp-val">41</span>
+            <button class="btn-coin" onclick="changeCoin('gp', 1)">+</button>
+          </div>
+          <div class="converter-box">
+            <button class="btn-convert" title="Розміняти 1 Золоту в 10 Срібних" onclick="convertCurrency('gpToSp')">1 GP ➔ 10 SP</button>
+          </div>
+        </div>
+
+        <div class="coin-card">
+          <span class="coin-label">⚪ Срібні (SP)</span>
+          <div class="coin-controls">
+            <button class="btn-coin" onclick="changeCoin('sp', -1)">-</button>
+            <span class="coin-val" id="sp-val">12</span>
+            <button class="btn-coin" onclick="changeCoin('sp', 1)">+</button>
+          </div>
+          <div class="converter-box">
+            <button class="btn-convert" title="Об'єднати 10 Срібних в 1 Золоту" onclick="convertCurrency('spToGp')">10 SP ➔ 1 GP</button>
+            <button class="btn-convert" title="Розміняти 1 Срібну в 10 Мідних" onclick="convertCurrency('spToCp')">1 SP ➔ 10 CP</button>
+          </div>
+        </div>
+
+        <div class="coin-card">
+          <span class="coin-label">🟤 Мідні (CP)</span>
+          <div class="coin-controls">
+            <button class="btn-coin" onclick="changeCoin('cp', -1)">-</button>
+            <span class="coin-val" id="cp-val">5</span>
+            <button class="btn-coin" onclick="changeCoin('cp', 1)">+</button>
+          </div>
+          <div class="converter-box">
+            <button class="btn-convert" title="Об'єднати 10 Мідних в 1 Срібну" onclick="convertCurrency('cpToSp')">10 CP ➔ 1 SP</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="card-title collapsible-header" onclick="toggleBlock(this)">
+        <span>📜 Передісторія</span>
+        <span class="toggle-icon">▼</span>
+      </h2>
+      <div class="collapsible-content">
+        <p class="backstory-text" id="backstory-text"></p>
+      </div>
+    </section>
+
+    <footer class="card">
+      <h2 class="card-title collapsible-header" onclick="toggleBlock(this)">
+        <span>🖼️ Портрет персонажа</span>
+        <span class="toggle-icon">▼</span>
+      </h2>
+      <div class="collapsible-content">
+        <img class="portrait-img" id="portrait-img" src="" alt="Портрет персонажа">
+      </div>
+    </footer>
+
+  </div>
+
+  <script src="js/character_logic.js"></script>
+</body>
+</html>
