@@ -279,6 +279,7 @@ const handleLogin = async (e) => {
 
     if (response.ok) {
       const userData = result.dm || { email, nickname: email.split('@')[0] };
+      localStorage.setItem("dm_id", result.dm.id);
       loginDM(userData);
     } else {
       // Якщо сервер віддав 422 (помилка формату) або 401 (невірний пароль)
@@ -306,7 +307,10 @@ if (dmLoginForm) dmLoginForm.addEventListener('submit', handleLogin);
     if (dmLogoutBtn) {
       dmLogoutBtn.addEventListener('click', () => {
         currentDMUser = null;
+        // Обидва ключі мають чиститись разом, інакше player_navigation.js
+        // (який дивиться лише на dm_id) залишиться "залогіненим" зі старим DM.
         localStorage.removeItem('dnd_dm_session');
+        localStorage.removeItem('dm_id');
         if (dmDashboard) dmDashboard.classList.add('hidden');
         if (dmAuthPanel) dmAuthPanel.classList.remove('hidden');
       });
@@ -431,7 +435,7 @@ if (dmLoginForm) dmLoginForm.addEventListener('submit', handleLogin);
 // Global navigation router for DM Actions
 window.navigateTo = function(route) {
   if (route === 'create_character') {
-    window.location.href = '/character_creation.html';
+    window.location.href = '/player_navigation';
   } else if (route === 'story_builder') {
     window.location.href = '/dm_story_builder.html';
   } else if (route === 'live_session' || route === 'dmDashboardStep') {

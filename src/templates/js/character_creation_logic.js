@@ -2,9 +2,12 @@
  * ============================================================================
  * D&D CHARACTER BUILDER & EDITOR LOGIC (DM SMARTPHONE OPTIMIZED)
  * ============================================================================
+ * Сторінка відкривається як /character_creation?char_id=...&player_id=...
+ * char_id - обов'язковий: player_navigation.js завжди спочатку створює
+ * порожнього персонажа через POST /api/characters, і тільки потім відкриває
+ * цю сторінку з готовим id.
  */
 
-// Порожній за замовчуванням об'єкт персонажа
 const emptyCharacterTemplate = {
   name: "",
   role: "",
@@ -28,13 +31,62 @@ const emptyCharacterTemplate = {
   portraitData: ""
 };
 
-let dmData = JSON.parse(localStorage.getItem('dnd_dm_character_draft')) || emptyCharacterTemplate;
+let dmData = { ...emptyCharacterTemplate };
 
-document.addEventListener('DOMContentLoaded', () => {
+function getUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    charId: params.get('char_id'),
+    playerId: params.get('player_id')
+  };
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const { charId } = getUrlParams();
+
+  if (!charId) {
+    alert("Не вказано персонажа для редагування (відсутній char_id у посиланні).");
+    window.location.href = '/player_navigation';
+    return;
+  }
+
+  await loadCharacterFromServer(charId);
+
   initFormValues();
   setupDragAndDrop();
   setupAutoExpandTextareas();
 });
+
+async function loadCharacterFromServer(charId) {
+  try {
+    const response = await fetch(`/api/characters/${charId}`);
+    if (!response.ok) {
+      alert("Персонажа не знайдено на сервері.");
+      window.location.href = '/player_navigation';
+      return;
+    }
+    const data = await response.json();
+
+    dmData = {
+      name: data.name || "",
+      role: data.role || "",
+      session: data.session || "",
+      maxHP: data.max_hp ?? 10,
+      currentHP: data.current_hp ?? 10,
+      ac: data.ac ?? 10,
+      maxSlots: data.max_slots ?? 10,
+      stats: (data.stats && data.stats.length) ? data.stats : emptyCharacterTemplate.stats,
+      abilities: data.abilities || [],
+      inventory: data.inventory || [],
+      coins: { gp: data.gp || 0, sp: data.sp || 0, cp: data.cp || 0 },
+      backstory: data.backstory || "",
+      portraitData: data.portrait_data || ""
+    };
+  } catch (err) {
+    console.error(err);
+    alert("Помилка з'єднання з сервером під час завантаження персонажа.");
+  }
+}
 
 function initFormValues() {
   document.getElementById('dm-char-name').value = dmData.name || '';
@@ -64,6 +116,15 @@ function initFormValues() {
   }
 }
 
+/* Синхронізація верхніх полів у dmData (щоб не було ReferenceError
+   на oninput="saveDraft()" у character_creation.html). Значення все одно
+   ще раз читаються напряму з DOM при збереженні - це просто для консистентності. */
+function saveDraft() {
+  dmData.name = document.getElementById('dm-char-name').value;
+  dmData.role = document.getElementById('dm-char-role').value;
+  dmData.session = document.getElementById('dm-session').value;
+}
+
 /* ============================================================================
    ЛОГІКА ЗДОРОВ'Я (HP)
    ============================================================================ */
@@ -79,7 +140,7 @@ function updateHealthBar() {
   if (max < 0) max = 0;
 
   const percentage = max > 0 ? Math.max(0, Math.min(100, (cur / max) * 100)) : 0;
-  
+
   document.getElementById('hp-bar-fill').style.width = percentage + '%';
   document.getElementById('hp-percent-text').innerText = `${cur} / ${max} (${Math.round(percentage)}%)`;
 }
@@ -285,102 +346,48 @@ function setupAutoExpandTextareas() {
    ЗБЕРЕЖЕННЯ
    ============================================================================ */
 
-/**
- * Збирає всі дані з форми/екрана персонажа та повертає повний JSON-об'єкт.
- * Далі відправляє ці дані на сервер або в БД.
- */
 async function saveCharacterData() {
+  const { charId } = getUrlParams();
+  if (!charId) {
+    alert("Не вказано char_id - неможливо зберегти.");
+    return;
+  }
+
+  saveDraft(); // підтягуємо name/role/session у dmData про всяк випадок
+
+  const payload = {
+    name: document.getElementById('dm-char-name').value.trim() || "Без імені",
+    role: document.getElementById('dm-char-role').value.trim(),
+    session: document.getElementById('dm-session').value.trim(),
+    current_hp: parseInt(document.getElementById('dm-current-hp').value) || 0,
+    max_hp: parseInt(document.getElementById('dm-max-hp').value) || 0,
+    ac: parseInt(document.getElementById('dm-ac').value) || 0,
+    max_slots: parseInt(document.getElementById('dm-max-slots').value) || 0,
+    gp: parseInt(document.getElementById('dm-gp').value) || 0,
+    sp: parseInt(document.getElementById('dm-sp').value) || 0,
+    cp: parseInt(document.getElementById('dm-cp').value) || 0,
+    stats: dmData.stats,
+    abilities: dmData.abilities,
+    inventory: dmData.inventory,
+    backstory: document.getElementById('dm-backstory').value,
+    portrait_data: dmData.portraitData || ""
+  };
+
   try {
-    // 1. Основні дані персонажа
-    const characterId = document.getElementById('char-id')?.value || null; // ID персонажа в БД
-    const ownerPlayerId = document.getElementById('player-id')?.value || localStorage.getItem('playerId'); // ID гравця-власника
-    const name = document.getElementById('char-name')?.value?.trim() || "Без імені";
-    const title = document.getElementById('char-title')?.value?.trim() || "";
-    const avatarUrl = document.getElementById('char-avatar-url')?.value || document.getElementById('char-avatar-img')?.src || "";
-    const backstory = document.getElementById('char-backstory')?.value?.trim() || "";
-
-    // 2. Здоров'я та Захист
-    const hpCurrent = parseInt(document.getElementById('current-hp')?.innerText || "0", 10);
-    const hpMax = parseInt(document.getElementById('max-hp')?.value || "0", 10);
-    const ac = parseInt(document.getElementById('ac-val')?.value || "10", 10);
-
-    // 3. Монети
-    const coins = {
-      gp: parseInt(document.getElementById('gp-val')?.innerText || "0", 10),
-      sp: parseInt(document.getElementById('sp-val')?.innerText || "0", 10),
-      cp: parseInt(document.getElementById('cp-val')?.innerText || "0", 10)
-    };
-
-    // 4. Характеристики (Stats)
-    const stats = {
-      str: parseInt(document.getElementById('stat-str')?.value || "10", 10),
-      dex: parseInt(document.getElementById('stat-dex')?.value || "10", 10),
-      con: parseInt(document.getElementById('stat-con')?.value || "10", 10),
-      int: parseInt(document.getElementById('stat-int')?.value || "10", 10),
-      wis: parseInt(document.getElementById('stat-wis')?.value || "10", 10),
-      cha: parseInt(document.getElementById('stat-cha')?.value || "10", 10)
-    };
-
-    // 5. Уміння / Навички (Abilities/Skills)
-    const abilities = [];
-    document.querySelectorAll('.ability-card-item').forEach(card => {
-      abilities.push({
-        id: card.dataset.abilityId || null,
-        name: card.querySelector('.ability-name-input')?.value?.trim() || "",
-        description: card.querySelector('.ability-desc-input')?.value?.trim() || "",
-        mechanism: card.querySelector('.ability-mechanism-input')?.value?.trim() || "", // Принцип дії (напр., "Кидок d20 + Модифікатор Сили")
-        actionType: card.querySelector('.ability-action-type')?.value || "active", // "active", "passive", "reaction", "bonus"
-        costOrUsage: card.querySelector('.ability-usage-input')?.value?.trim() || "" // к-сть використань/ресурс
-      });
-    });
-
-    // 6. Предмети (Inventory)
-    const inventory = [];
-    document.querySelectorAll('.inventory-card-item').forEach(card => {
-      inventory.push({
-        id: card.dataset.itemId || null,
-        name: card.querySelector('.item-name-input')?.value?.trim() || "",
-        description: card.querySelector('.item-desc-input')?.value?.trim() || "",
-        quantity: parseInt(card.querySelector('.item-qty-input')?.value || "1", 10),
-        imageUrl: card.querySelector('.item-img-input')?.value || card.querySelector('img')?.src || ""
-      });
-    });
-
-    // Підсумковий об'єкт персонажа
-    const characterPayload = {
-      id: characterId,
-      ownerPlayerId: ownerPlayerId,
-      name: name,
-      title: title,
-      avatarUrl: avatarUrl,
-      backstory: backstory,
-      hp: { current: hpCurrent, max: hpMax },
-      ac: ac,
-      coins: coins,
-      stats: stats,
-      abilities: abilities,
-      inventory: inventory,
-      updatedAt: new Date().toISOString()
-    };
-
-    console.log("Збереження персонажа:", characterPayload);
-
-    // Відправка на сервер / API
-    const response = await fetch('/api/characters/save', {
-      method: 'POST',
+    const response = await fetch(`/api/characters/${charId}`, {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(characterPayload)
+      body: JSON.stringify(payload)
     });
 
-    const result = await response.json();
     if (response.ok) {
       alert("Персонажа успішно збережено!");
     } else {
-      alert("Помилка збереження: " + (result.message || "Невідома помилка"));
+      const result = await response.json().catch(() => ({}));
+      alert("Помилка збереження: " + (result.detail || `HTTP ${response.status}`));
     }
-
   } catch (error) {
-    console.error("Помилка під час збору даних персонажа:", error);
+    console.error("Помилка під час збереження персонажа:", error);
     alert("Критична помилка при збереженні!");
   }
 }
