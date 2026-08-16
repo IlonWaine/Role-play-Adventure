@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
@@ -23,7 +23,7 @@ class Player(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    dm_id = Column(Integer, ForeignKey("dm_users.id"), nullable=False)
+    dm_id = Column(Integer, ForeignKey("dm_users.id"), nullable=False, index=True)
 
     # Зв'язки
     dm = relationship("DMUser", back_populates="players")
@@ -38,7 +38,7 @@ class Character(Base):
     __tablename__ = "characters"
 
     id = Column(Integer, primary_key=True, index=True)
-    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False, index=True)
 
     name = Column(String, nullable=False, default="Новий герой")
     role = Column(String, nullable=True, default="")       # "Роль / Клас"
@@ -75,7 +75,7 @@ class Story(Base):
     __tablename__ = "stories"
 
     id = Column(Integer, primary_key=True, index=True)
-    dm_id = Column(Integer, ForeignKey("dm_users.id"), nullable=False)
+    dm_id = Column(Integer, ForeignKey("dm_users.id"), nullable=False, index=True)
 
     title = Column(String, nullable=False, default="Нова історія")
     # {"characters": [...], "acts": [...]} - формат ідентичний adventureData
@@ -85,3 +85,50 @@ class Story(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     dm = relationship("DMUser", back_populates="stories")
+
+
+class LiveSession(Base):
+    """
+    Жива ігрова сесія: DM запускає її з готової Історії (Story).
+    Учасники сесії = story.characters (вже містить character_id/player_id/goal),
+    окрема таблиця участі не потрібна. Живий стан бою (HP ворогів під час сесії)
+    зберігається окремо від шаблону історії, щоб не псувати сценарій для
+    повторного використання.
+    """
+    __tablename__ = "live_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    dm_id = Column(Integer, ForeignKey("dm_users.id"), nullable=False, index=True)
+    story_id = Column(Integer, ForeignKey("stories.id"), nullable=False, index=True)
+
+    room_code = Column(String, unique=True, index=True, nullable=False)
+    is_active = Column(Boolean, default=True)
+
+    # {"enemy_hp": {block_id: {enemy_index: hp}}, "current_act_id":.., "current_scene_id":..}
+    state_json = Column(Text, default='{"enemy_hp": {}}')
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    dm = relationship("DMUser")
+    story = relationship("Story")
+
+
+class SessionMessage(Base):
+    """Повідомлення чату живої сесії (загал / DM-шепіт / приватні між персонажами)."""
+    __tablename__ = "session_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("live_sessions.id"), nullable=False, index=True)
+
+    sender_type = Column(String, nullable=False)      # "dm" | "player"
+    sender_id = Column(Integer, nullable=True)          # dm_id або character_id
+    sender_name = Column(String, nullable=False)
+
+    recipient_type = Column(String, nullable=False)    # "all" | "dm" | "character"
+    recipient_id = Column(Integer, nullable=True)        # character_id, якщо recipient_type == "character"
+
+    message_type = Column(String, default="text")        # "text" | "image"
+    text = Column(Text, default="")
+    image_url = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)

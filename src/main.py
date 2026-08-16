@@ -1,10 +1,13 @@
 import hashlib
 import json
 import os
+import random
 import secrets
+import string
 from typing import Any, Dict, List, Optional
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect, status
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr
@@ -17,8 +20,60 @@ database_structure.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI(title="D&D Nexus Hub")
 
+# Стискає JSON-відповіді (сценарії з багатьма актами/сценами - найважчі) -
+# помітно економить трафік на хостингах з лімітом bandwidth.
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
+
+
+# =============================================================================
+# WebSocket: гібридна модель "сигнал -> перезапит".
+# Сокет НЕ носить самі повідомлення/дані (щоб не дублювати логіку прав
+# доступу з REST-фільтрації), а лише каже клієнту "щось змінилось, онови
+# дані через звичайний REST-запит". REST лишається джерелом правди;
+# WebSocket лише прибирає затримку опитування.
+# =============================================================================
+class ConnectionManager:
+    def __init__(self):
+        self.active: Dict[int, List[WebSocket]] = {}
+
+    async def connect(self, session_id: int, websocket: WebSocket):
+        await websocket.accept()
+        self.active.setdefault(session_id, []).append(websocket)
+
+    def disconnect(self, session_id: int, websocket: WebSocket):
+        conns = self.active.get(session_id)
+        if conns and websocket in conns:
+            conns.remove(websocket)
+            if not conns:
+                self.active.pop(session_id, None)
+
+    async def broadcast(self, session_id: int, event_type: str):
+        dead = []
+        for ws in self.active.get(session_id, []):
+            try:
+                await ws.send_json({"type": event_type})
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            self.disconnect(session_id, ws)
+
+
+manager = ConnectionManager()
+
+
+@app.websocket("/ws/sessions/{session_id}")
+async def session_websocket(websocket: WebSocket, session_id: int):
+    await manager.connect(session_id, websocket)
+    try:
+        while True:
+            # Клієнт шле "ping" раз в ~25с лише щоб з'єднання не відвалилось
+            # по таймауту проксі хостингу - вміст ігнорується.
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(session_id, websocket)
 
 
 # =============================================================================
@@ -146,6 +201,87 @@ def story_to_dict(s: database_structure.Story) -> dict:
         "title": s.title,
         "characters": payload.get("characters", []),
         "acts": payload.get("acts", []),
+    }
+
+
+class StartSessionSchema(BaseModel):
+    dm_id: int
+    story_id: int
+
+
+class SessionStateUpdateSchema(BaseModel):
+    """enemy_hp: {block_id: {enemy_index: hp}} - об'єднується (merge) з існуючим станом,
+    а не перезаписує його повністю, щоб різні блоки/акти не затирали одне одного."""
+    enemy_hp: Optional[Dict[str, Dict[str, int]]] = None
+    current_act_id: Optional[str] = None
+    current_scene_id: Optional[str] = None
+
+
+class TradeItemSchema(BaseModel):
+    from_character_id: int
+    to_character_id: int
+    item_index: int
+
+
+class SendMessageSchema(BaseModel):
+    sender_type: str            # "dm" | "player"
+    sender_id: Optional[int] = None
+    sender_name: str
+    recipient_type: str         # "all" | "dm" | "character"
+    recipient_id: Optional[int] = None
+    message_type: str = "text"  # "text" | "image"
+    text: str = ""
+    image_url: Optional[str] = None
+
+
+def generate_room_code() -> str:
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+
+def session_to_dict(session: database_structure.LiveSession, db: Session) -> dict:
+    story = db.query(database_structure.Story).get(session.story_id)
+    story_payload = json.loads(story.data_json or "{}") if story else {"characters": [], "acts": []}
+
+    participants = []
+    for link in story_payload.get("characters", []):
+        char_id = link.get("character_id")
+        if not char_id:
+            continue
+        char = db.query(database_structure.Character).get(char_id)
+        if not char:
+            continue
+        participants.append({
+            **character_to_dict(char),
+            "goal": link.get("goal", ""),
+            "story_title": link.get("title", ""),
+        })
+
+    return {
+        "id": session.id,
+        "dm_id": session.dm_id,
+        "story_id": session.story_id,
+        "story_title": story.title if story else "",
+        "room_code": session.room_code,
+        "is_active": session.is_active,
+        "state": json.loads(session.state_json or "{}"),
+        "acts": story_payload.get("acts", []),
+        "participants": participants,
+    }
+
+
+def message_to_dict(m: database_structure.SessionMessage) -> dict:
+    return {
+        "id": m.id,
+        "session_id": m.session_id,
+        "sender_type": m.sender_type,
+        "sender_id": m.sender_id,
+        "sender_name": m.sender_name,
+        "recipient_type": m.recipient_type,
+        "recipient_id": m.recipient_id,
+        "message_type": m.message_type,
+        "text": m.text,
+        "image_url": m.image_url,
+        "created_at": m.created_at.isoformat() if m.created_at else None,
     }
 
 
@@ -406,6 +542,206 @@ def delete_story(story_id: int, db: Session = Depends(database.get_db)):
 
 
 # =============================================================================
+# API: Live Sessions (Жива гра)
+# =============================================================================
+@app.post("/api/sessions", status_code=status.HTTP_201_CREATED)
+def start_session(data: StartSessionSchema, db: Session = Depends(database.get_db)):
+    """DM запускає гру з готової історії. Учасники беруться прямо з
+    story.characters (персонажі, вже прив'язані DM у редакторі історії)."""
+    story = db.query(database_structure.Story).get(data.story_id)
+    if not story or story.dm_id != data.dm_id:
+        raise HTTPException(status_code=404, detail="Історію не знайдено")
+
+    code = generate_room_code()
+    while db.query(database_structure.LiveSession).filter(
+        database_structure.LiveSession.room_code == code
+    ).first():
+        code = generate_room_code()
+
+    session = database_structure.LiveSession(dm_id=data.dm_id, story_id=data.story_id, room_code=code)
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return session_to_dict(session, db)
+
+
+@app.get("/api/dm/{dm_id}/sessions")
+def get_dm_sessions(dm_id: int, db: Session = Depends(database.get_db)):
+    """Активні сесії DM (щоб можна було повернутись до вже запущеної гри)."""
+    sessions = db.query(database_structure.LiveSession).filter(
+        database_structure.LiveSession.dm_id == dm_id,
+        database_structure.LiveSession.is_active == True,  # noqa: E712
+    ).all()
+    return [
+        {
+            "id": s.id,
+            "room_code": s.room_code,
+            "story_id": s.story_id,
+            "story_title": s.story.title if s.story else "",
+        }
+        for s in sessions
+    ]
+
+
+@app.get("/api/sessions/by-room/{room_code}")
+def get_session_by_room(room_code: str, db: Session = Depends(database.get_db)):
+    """Вхід гравця за кодом кімнати."""
+    session = db.query(database_structure.LiveSession).filter(
+        database_structure.LiveSession.room_code == room_code.strip().upper(),
+        database_structure.LiveSession.is_active == True,  # noqa: E712
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Сесію з таким кодом не знайдено, або вона вже завершена")
+    return session_to_dict(session, db)
+
+
+@app.get("/api/sessions/{session_id}")
+def get_session(session_id: int, db: Session = Depends(database.get_db)):
+    session = db.query(database_structure.LiveSession).get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Сесію не знайдено")
+    return session_to_dict(session, db)
+
+
+@app.put("/api/sessions/{session_id}/state")
+async def update_session_state(session_id: int, data: SessionStateUpdateSchema, db: Session = Depends(database.get_db)):
+    """Живий стан бою (HP ворогів, поточна сцена) - зберігається окремо
+    від шаблону історії, щоб не псувати сценарій для повторного використання."""
+    session = db.query(database_structure.LiveSession).get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Сесію не знайдено")
+
+    state = json.loads(session.state_json or "{}")
+    payload = data.dict(exclude_unset=True)
+
+    if payload.get("enemy_hp") is not None:
+        state.setdefault("enemy_hp", {})
+        for block_id, enemies in payload["enemy_hp"].items():
+            state["enemy_hp"].setdefault(block_id, {})
+            state["enemy_hp"][block_id].update(enemies)
+    if "current_act_id" in payload:
+        state["current_act_id"] = payload["current_act_id"]
+    if "current_scene_id" in payload:
+        state["current_scene_id"] = payload["current_scene_id"]
+
+    session.state_json = json.dumps(state)
+    db.commit()
+
+    await manager.broadcast(session_id, "state")
+    return {"state": state}
+
+
+@app.post("/api/sessions/{session_id}/end")
+def end_session(session_id: int, db: Session = Depends(database.get_db)):
+    """Завершення гри. Зміни персонажів (HP/інвентар/монети/уміння) вже
+    збережені в БД - вони пишуться відразу при кожній дії, а не в кінці."""
+    session = db.query(database_structure.LiveSession).get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Сесію не знайдено")
+    session.is_active = False
+    db.commit()
+    return {"message": "Сесію завершено"}
+
+
+@app.post("/api/sessions/{session_id}/trade")
+async def trade_item(session_id: int, data: TradeItemSchema, db: Session = Depends(database.get_db)):
+    """Передача одного предмета з інвентарю одного персонажа іншому."""
+    session = db.query(database_structure.LiveSession).get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Сесію не знайдено")
+
+    from_char = db.query(database_structure.Character).get(data.from_character_id)
+    to_char = db.query(database_structure.Character).get(data.to_character_id)
+    if not from_char or not to_char:
+        raise HTTPException(status_code=404, detail="Персонажа не знайдено")
+
+    from_inventory = json.loads(from_char.inventory_json or "[]")
+    if data.item_index < 0 or data.item_index >= len(from_inventory):
+        raise HTTPException(status_code=400, detail="Невірний індекс предмета")
+
+    item = from_inventory.pop(data.item_index)
+    to_inventory = json.loads(to_char.inventory_json or "[]")
+    to_inventory.append(item)
+
+    from_char.inventory_json = json.dumps(from_inventory)
+    to_char.inventory_json = json.dumps(to_inventory)
+    db.commit()
+
+    await manager.broadcast(session_id, "inventory")
+
+    return {
+        "item": item,
+        "from_character": character_to_dict(from_char),
+        "to_character": character_to_dict(to_char),
+    }
+
+
+# =============================================================================
+# API: Session Chat
+# =============================================================================
+@app.post("/api/sessions/{session_id}/messages", status_code=status.HTTP_201_CREATED)
+async def send_message(session_id: int, data: SendMessageSchema, db: Session = Depends(database.get_db)):
+    session = db.query(database_structure.LiveSession).get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Сесію не знайдено")
+
+    msg = database_structure.SessionMessage(
+        session_id=session_id,
+        sender_type=data.sender_type,
+        sender_id=data.sender_id,
+        sender_name=data.sender_name,
+        recipient_type=data.recipient_type,
+        recipient_id=data.recipient_id,
+        message_type=data.message_type,
+        text=data.text,
+        image_url=data.image_url,
+    )
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
+
+    await manager.broadcast(session_id, "chat")
+    return message_to_dict(msg)
+
+
+@app.get("/api/sessions/{session_id}/messages")
+def get_messages(
+    session_id: int,
+    viewer_type: str,
+    viewer_id: Optional[int] = None,
+    after_id: Optional[int] = None,
+    db: Session = Depends(database.get_db),
+):
+    """
+    viewer_type: "dm" (бачить усе листування сесії) | "character" (бачить
+    загальний чат + DM-оголошення + власне приватне листування).
+
+    after_id: якщо задано, повертає лише повідомлення з id > after_id
+    (delta-підвантаження) - замість повної історії при кожному опитуванні,
+    що з часом стає дедалі важчим запитом і трафіком.
+    """
+    query = db.query(database_structure.SessionMessage).filter(
+        database_structure.SessionMessage.session_id == session_id
+    )
+    if after_id is not None:
+        query = query.filter(database_structure.SessionMessage.id > after_id)
+
+    all_msgs = query.order_by(database_structure.SessionMessage.id.asc()).all()
+
+    if viewer_type == "dm":
+        visible = all_msgs
+    else:
+        visible = [
+            m for m in all_msgs
+            if m.recipient_type == "all"
+            or (m.recipient_type == "dm" and m.sender_id == viewer_id)
+            or (m.recipient_type == "character" and (m.recipient_id == viewer_id or m.sender_id == viewer_id))
+        ]
+
+    return [message_to_dict(m) for m in visible]
+
+
+# =============================================================================
 # Статичні файли та сторінки
 # =============================================================================
 # ВАЖЛИВО: css/js мають лежати саме в templates/css та templates/js,
@@ -453,4 +789,28 @@ def get_dm_create_page():
     file_path = os.path.join(TEMPLATES_DIR, "DM_create.html")
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File DM_create.html not found")
+    return FileResponse(file_path)
+
+
+@app.get("/session_setup")
+def get_session_setup_page():
+    file_path = os.path.join(TEMPLATES_DIR, "session_setup.html")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File session_setup.html not found")
+    return FileResponse(file_path)
+
+
+@app.get("/dm_live")
+def get_dm_live_page():
+    file_path = os.path.join(TEMPLATES_DIR, "dm_live.html")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File dm_live.html not found")
+    return FileResponse(file_path)
+
+
+@app.get("/character_ui")
+def get_character_ui_page():
+    file_path = os.path.join(TEMPLATES_DIR, "character_UI.html")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File character_UI.html not found")
     return FileResponse(file_path)

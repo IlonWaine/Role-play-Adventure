@@ -239,6 +239,10 @@ body {
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
 }
 
+#goal-card {
+  border-color: var(--border-accent);
+}
+
 .card-title {
   font-family: 'Cinzel', serif;
   font-size: 1.1rem;
@@ -318,6 +322,35 @@ body {
   font-weight: 700;
   color: #ffffff;
   margin-bottom: 2px;
+}
+
+.ability-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.ability-badge {
+  font-size: 0.7rem;
+  white-space: nowrap;
+  color: var(--text-muted);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 1px 8px;
+}
+
+.ability-principle {
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.ability-desc {
+  font-size: 0.9rem;
 }
 
 /* ІНВЕНТАР */

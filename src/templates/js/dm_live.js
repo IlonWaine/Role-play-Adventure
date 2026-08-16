@@ -1,0 +1,441 @@
+// =============================================================================
+// DM LIVE DASHBOARD - керування живою сесією.
+// URL: /dm_live?session_id=...
+// =============================================================================
+
+let sessionId = null;
+let sessionData = null;
+let chatMessages = [];
+let lastMessageId = 0;
+let isFirstMessageLoad = true;
+let draggedItemName = null;
+let ws = null;
+
+async function init() {
+  sessionId = new URLSearchParams(window.location.search).get('session_id');
+  if (!sessionId) {
+    alert('Не вказано ID сесії.');
+    window.location.href = '/session_setup';
+    return;
+  }
+
+  await loadSession();
+  if (!sessionData) return;
+
+  setupChatRecipientOptions();
+  await loadMessages();
+
+  connectWebSocket();
+  // Запасні REST-опитування на випадок розриву WS - рідше, ніж раніше,
+  // бо основне оновлення тепер прилітає миттєво через сокет.
+  setInterval(loadMessages, 15000);
+  setInterval(refreshParticipants, 20000);
+}
+
+function connectWebSocket() {
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${protocol}//${location.host}/ws/sessions/${sessionId}`);
+
+  ws.onmessage = async (event) => {
+    let data;
+    try {
+      data = JSON.parse(event.data);
+    } catch (e) {
+      return;
+    }
+
+    if (data.type === 'chat') {
+      await loadMessages();
+    } else if (data.type === 'inventory') {
+      await refreshParticipants();
+    } else if (data.type === 'state') {
+      // Живий HP ворогів змінився (напр. з іншої вкладки DM) - оновлюємо сценарій.
+      await loadSession();
+    }
+  };
+
+  ws.onclose = () => {
+    setTimeout(connectWebSocket, 3000);
+  };
+  ws.onerror = () => ws.close();
+
+  const pingInterval = setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send('ping');
+    } else {
+      clearInterval(pingInterval);
+    }
+  }, 25000);
+}
+
+async function loadSession() {
+  try {
+    const res = await fetch(`/api/sessions/${sessionId}`);
+    if (!res.ok) {
+      alert('Сесію не знайдено (можливо, вона вже завершена).');
+      window.location.href = '/session_setup';
+      return;
+    }
+    sessionData = await res.json();
+    document.getElementById('storyTitleDisplay').innerText = sessionData.story_title;
+    document.getElementById('roomCodeDisplay').innerText = sessionData.room_code;
+    renderParticipants();
+    renderActs();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function refreshParticipants() {
+  try {
+    const res = await fetch(`/api/sessions/${sessionId}`);
+    if (!res.ok) return;
+    const fresh = await res.json();
+    sessionData.participants = fresh.participants;
+    renderParticipants();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+// --- УЧАСНИКИ ---
+function renderParticipants() {
+  const container = document.getElementById('participantsContainer');
+  container.innerHTML = '';
+
+  if (!sessionData.participants || sessionData.participants.length === 0) {
+    container.innerHTML = '<p style="font-size:0.8rem; color:var(--text-muted);">У цій історії ще немає прив\'язаних персонажів.</p>';
+    return;
+  }
+
+  sessionData.participants.forEach(p => {
+    const pct = p.max_hp > 0 ? Math.max(0, Math.min(100, Math.round((p.current_hp / p.max_hp) * 100))) : 0;
+    const card = document.createElement('div');
+    card.className = 'participant-card';
+    card.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <strong style="color:var(--accent-gold);">${p.name}</strong>
+        <span style="font-size:0.7rem; color:var(--text-muted);">${p.role || ''}</span>
+      </div>
+      <div class="hp-mini-bar-outer"><div class="hp-mini-bar-inner" style="width:${pct}%;"></div></div>
+      <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-top:4px;">
+        <span>❤️ ${p.current_hp}/${p.max_hp}</span>
+        <span>🛡️ ${p.ac}</span>
+      </div>
+      ${p.goal ? `<div style="font-size:0.7rem; color:var(--text-muted); margin-top:6px;"><i class="fa-solid fa-bullseye"></i> ${p.goal}</div>` : ''}
+      <div class="item-drop-zone" data-char-id="${p.id}">
+        <i class="fa-solid fa-hand-holding-heart"></i> Перетягніть предмет сюди
+      </div>
+    `;
+    container.appendChild(card);
+    setupItemDropZone(card.querySelector('.item-drop-zone'));
+  });
+}
+
+// --- СЦЕНАРІЙ (read-only + жива HP ворогів + drag предметів) ---
+function renderActs() {
+  const container = document.getElementById('actsContainer');
+  container.innerHTML = '';
+
+  if (!sessionData.acts || sessionData.acts.length === 0) {
+    container.innerHTML = '<p style="font-size:0.8rem; color:var(--text-muted);">У цій історії ще немає жодного Акту.</p>';
+    return;
+  }
+
+  sessionData.acts.forEach(act => {
+    const actCard = document.createElement('div');
+    actCard.className = 'act-card';
+
+    const header = document.createElement('div');
+    header.className = 'act-header';
+    header.innerText = act.title;
+    actCard.appendChild(header);
+
+    const actBlocksWrap = document.createElement('div');
+    actBlocksWrap.style.display = 'flex';
+    actBlocksWrap.style.flexDirection = 'column';
+    actBlocksWrap.style.gap = '10px';
+    renderBlocksReadonly(act.blocks || [], actBlocksWrap);
+    actCard.appendChild(actBlocksWrap);
+
+    (act.scenes || []).forEach(scene => {
+      const sceneCard = document.createElement('div');
+      sceneCard.className = 'scene-card';
+      sceneCard.style.marginTop = '10px';
+
+      const sceneHeader = document.createElement('div');
+      sceneHeader.className = 'scene-header';
+      sceneHeader.innerText = scene.title;
+      sceneCard.appendChild(sceneHeader);
+
+      const sceneBlocksWrap = document.createElement('div');
+      sceneBlocksWrap.style.display = 'flex';
+      sceneBlocksWrap.style.flexDirection = 'column';
+      sceneBlocksWrap.style.gap = '8px';
+      renderBlocksReadonly(scene.blocks || [], sceneBlocksWrap);
+      sceneCard.appendChild(sceneBlocksWrap);
+
+      actCard.appendChild(sceneCard);
+    });
+
+    container.appendChild(actCard);
+  });
+}
+
+function renderBlocksReadonly(blocks, container) {
+  blocks.forEach(block => {
+    const el = document.createElement('div');
+    el.className = 'scene-block';
+
+    if (block.type === 'description') {
+      el.innerHTML = `
+        <div class="scene-block-header">📝 Опис</div>
+        <p style="font-size:0.85rem;">${block.content || ''}</p>
+      `;
+    } else if (block.type === 'visual') {
+      el.innerHTML = `
+        <div class="scene-block-header">🖼️ Візуальний опис</div>
+        ${block.imageUrl ? `<img src="${block.imageUrl}" alt="Візуал"><br>
+          <button class="btn btn-outline share-img-btn" style="font-size:0.7rem; margin-top:6px;"><i class="fa-solid fa-share"></i> Поділитись у чаті</button>` : ''}
+        ${block.caption ? `<div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">${block.caption}</div>` : ''}
+      `;
+      const shareBtn = el.querySelector('.share-img-btn');
+      if (shareBtn) shareBtn.addEventListener('click', () => shareImageToChat(block.imageUrl));
+    } else if (block.type === 'enemies') {
+      const rows = (block.list || []).map((enemy, enemyIdx) => {
+        const liveHp = getEnemyHp(block.id, enemyIdx, enemy.hp);
+        return `
+          <div class="enemy-row-live">
+            <span>${enemy.name}</span>
+            <span>🛡️ ${enemy.ac}</span>
+            <span>⚔️ ${enemy.attack}</span>
+            <span>❤️ <input type="number" value="${liveHp}" class="enemy-hp-input" data-block-id="${block.id}" data-enemy-idx="${enemyIdx}"> / ${enemy.hp}</span>
+          </div>
+        `;
+      }).join('');
+
+      el.innerHTML = `
+        <div class="scene-block-header">⚔️ Група ворогів</div>
+        ${block.imageUrl ? `<img src="${block.imageUrl}" alt="Вороги"><br>
+          <button class="btn btn-outline share-img-btn" style="font-size:0.7rem; margin-top:6px;"><i class="fa-solid fa-share"></i> Поділитись у чаті</button>` : ''}
+        <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">${rows}</div>
+      `;
+      const shareBtn = el.querySelector('.share-img-btn');
+      if (shareBtn) shareBtn.addEventListener('click', () => shareImageToChat(block.imageUrl));
+
+      el.querySelectorAll('.enemy-hp-input').forEach(input => {
+        input.addEventListener('change', () => {
+          updateEnemyHp(input.dataset.blockId, parseInt(input.dataset.enemyIdx), input.value);
+        });
+      });
+    } else if (block.type === 'items') {
+      const chips = (block.list || []).map(item => `<div class="item-chip" draggable="true">🎁 ${item}</div>`).join('');
+      el.innerHTML = `
+        <div class="scene-block-header">🎁 Предмети / Лут</div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;">${chips}</div>
+      `;
+      el.querySelectorAll('.item-chip').forEach((chip, i) => {
+        const itemName = (block.list || [])[i];
+        chip.addEventListener('dragstart', () => {
+          draggedItemName = itemName;
+          chip.classList.add('dragging');
+        });
+        chip.addEventListener('dragend', () => chip.classList.remove('dragging'));
+      });
+    }
+
+    container.appendChild(el);
+  });
+}
+
+function getEnemyHp(blockId, enemyIdx, defaultVal) {
+  const override = sessionData.state && sessionData.state.enemy_hp
+    && sessionData.state.enemy_hp[blockId]
+    && sessionData.state.enemy_hp[blockId][String(enemyIdx)];
+  return override !== undefined ? override : defaultVal;
+}
+
+async function updateEnemyHp(blockId, enemyIdx, value) {
+  const hp = parseInt(value) || 0;
+  sessionData.state = sessionData.state || {};
+  sessionData.state.enemy_hp = sessionData.state.enemy_hp || {};
+  sessionData.state.enemy_hp[blockId] = sessionData.state.enemy_hp[blockId] || {};
+  sessionData.state.enemy_hp[blockId][String(enemyIdx)] = hp;
+
+  try {
+    await fetch(`/api/sessions/${sessionId}/state`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enemy_hp: { [blockId]: { [enemyIdx]: hp } } })
+    });
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+// --- ПЕРЕДАЧА ПРЕДМЕТІВ DRAG & DROP ---
+function setupItemDropZone(el) {
+  el.addEventListener('dragover', (e) => {
+    if (draggedItemName === null) return;
+    e.preventDefault();
+    el.classList.add('drag-over');
+  });
+  el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+  el.addEventListener('drop', (e) => {
+    e.preventDefault();
+    el.classList.remove('drag-over');
+    if (draggedItemName === null) return;
+    const targetCharId = parseInt(el.dataset.charId);
+    giveItemToCharacter(targetCharId, draggedItemName);
+    draggedItemName = null;
+  });
+}
+
+async function giveItemToCharacter(targetCharId, itemName) {
+  const participant = sessionData.participants.find(p => p.id === targetCharId);
+  if (!participant) return;
+
+  const newInventory = [...(participant.inventory || []), { name: itemName, qty: 1, desc: '' }];
+
+  try {
+    const res = await fetch(`/api/characters/${targetCharId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ inventory: newInventory })
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      participant.inventory = updated.inventory;
+      renderParticipants();
+      await sendDmChatMessage('all', null, `🎁 DM передав "${itemName}" гравцю ${participant.name}.`);
+    } else {
+      alert('Помилка передачі предмета.');
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Помилка з'єднання з сервером.");
+  }
+}
+
+// --- ЧАТ ---
+function setupChatRecipientOptions() {
+  const select = document.getElementById('chatRecipient');
+  (sessionData.participants || []).forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = `character:${p.id}`;
+    opt.textContent = `🧝 ${p.name} (шепіт)`;
+    select.appendChild(opt);
+  });
+}
+
+function toggleChat() {
+  document.getElementById('chatSidebar').classList.toggle('open');
+  document.getElementById('unreadBadge').style.display = 'none';
+}
+
+async function loadMessages() {
+  try {
+    const res = await fetch(`/api/sessions/${sessionId}/messages?viewer_type=dm&after_id=${lastMessageId}`);
+    if (!res.ok) return;
+    const newMessages = await res.json();
+
+    if (newMessages.length > 0) {
+      chatMessages = chatMessages.concat(newMessages);
+      lastMessageId = newMessages[newMessages.length - 1].id;
+      renderChatMessages(chatMessages);
+
+      if (!isFirstMessageLoad && !document.getElementById('chatSidebar').classList.contains('open')) {
+        document.getElementById('unreadBadge').style.display = 'inline';
+      }
+    }
+    isFirstMessageLoad = false;
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function renderChatMessages(messages) {
+  const container = document.getElementById('chatMessages');
+  container.innerHTML = messages.map(msg => {
+    let bubbleClass = '';
+    if (msg.sender_type === 'dm') bubbleClass = 'msg-own';
+    else if (msg.recipient_type !== 'all') bubbleClass = 'msg-secret';
+
+    const time = msg.created_at
+      ? new Date(msg.created_at).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })
+      : '';
+
+    const imageHtml = (msg.message_type === 'image' && msg.image_url)
+      ? `<img src="${msg.image_url}" style="max-width:100%; border-radius:6px; margin-top:4px;">`
+      : '';
+
+    return `
+      <div class="chat-msg-bubble ${bubbleClass}">
+        <div class="chat-msg-author">${msg.sender_name}</div>
+        ${msg.text ? `<div>${msg.text}</div>` : ''}
+        ${imageHtml}
+        <span class="chat-msg-time">${time}</span>
+      </div>
+    `;
+  }).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendDmChatMessage(recipientType, recipientId, text, messageType = 'text', imageUrl = null) {
+  try {
+    await fetch(`/api/sessions/${sessionId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sender_type: 'dm',
+        sender_id: sessionData.dm_id,
+        sender_name: 'Dungeon Master',
+        recipient_type: recipientType,
+        recipient_id: recipientId,
+        message_type: messageType,
+        text: text,
+        image_url: imageUrl
+      })
+    });
+    await loadMessages();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function sendDmMessage(e) {
+  e.preventDefault();
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const val = document.getElementById('chatRecipient').value;
+  let recipient_type = 'all';
+  let recipient_id = null;
+  if (val.startsWith('character:')) {
+    recipient_type = 'character';
+    recipient_id = parseInt(val.split(':')[1]);
+  }
+
+  await sendDmChatMessage(recipient_type, recipient_id, text);
+  input.value = '';
+}
+
+function shareImageToChat(url) {
+  if (!url) return;
+  sendDmChatMessage('all', null, '', 'image', url);
+}
+
+async function endSession() {
+  if (!confirm('Завершити цю сесію? Гравці більше не зможуть підключатись через цей код кімнати. Зміни персонажів вже збережені в базі даних.')) return;
+  try {
+    await fetch(`/api/sessions/${sessionId}/end`, { method: 'POST' });
+    alert('Сесію завершено.');
+    window.location.href = '/session_setup';
+  } catch (err) {
+    console.error(err);
+    alert('Помилка завершення сесії.');
+  }
+}
+
+init();

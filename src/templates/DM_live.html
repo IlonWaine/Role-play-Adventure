@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DM Live - Керування грою</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #0d0f12;
+      --bg-card: #161920;
+      --bg-element: #1f242d;
+      --bg-input: #12151c;
+      --border-color: #2d3748;
+      --accent-gold: #d97706;
+      --accent-gold-hover: #b45309;
+      --accent-red: #991b1b;
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8;
+      --chat-width: 360px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-card); }
+    ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent-gold); }
+
+    header {
+      background-color: var(--bg-card);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      gap: 12px;
+    }
+
+    .header-title-container { display: flex; align-items: center; gap: 12px; }
+
+    .btn {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-gold { background-color: var(--accent-gold); color: #000; }
+    .btn-gold:hover { background-color: var(--accent-gold-hover); }
+    .btn-outline { background-color: transparent; color: var(--accent-gold); border-color: var(--accent-gold); }
+    .btn-outline:hover { background-color: rgba(217, 119, 6, 0.1); }
+    .btn-danger { background-color: transparent; color: #ef4444; border-color: #ef4444; }
+    .btn-danger:hover { background-color: rgba(239, 68, 68, 0.1); }
+    .btn-dark { background-color: var(--bg-element); color: var(--text-main); border-color: var(--border-color); }
+    .btn-dark:hover { background-color: #2a303c; }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 16px;
+      padding: 16px;
+      overflow: hidden;
+    }
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; overflow-y: auto; }
+      body { overflow: auto; }
+    }
+
+    .panel {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 12px 16px;
+      background-color: rgba(0, 0, 0, 0.2);
+      border-bottom: 1px solid var(--border-color);
+    }
+    .panel-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent-gold);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* УЧАСНИКИ */
+    .participant-card {
+      background-color: var(--bg-element);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px;
+    }
+    .hp-mini-bar-outer {
+      width: 100%; height: 8px;
+      background: #2c1214;
+      border-radius: 6px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    .hp-mini-bar-inner {
+      height: 100%;
+      background: linear-gradient(90deg, #9b1c1c, #e53e3e);
+    }
+    .item-drop-zone {
+      margin-top: 8px;
+      border: 2px dashed var(--border-color);
+      border-radius: 6px;
+      padding: 8px;
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      transition: border-color 0.15s, background-color 0.15s;
+    }
+    .item-drop-zone.drag-over {
+      border-color: var(--accent-gold);
+      background-color: rgba(217, 119, 6, 0.08);
+      color: var(--accent-gold);
+    }
+
+    /* СЦЕНАРІЙ (read-only вигляд, як у DM_create) */
+    .act-card {
+      background-color: var(--bg-element);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .act-header {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: var(--accent-gold);
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+    }
+    .scene-card {
+      background-color: #161920;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .scene-header { color: var(--accent-gold); font-weight: 600; }
+    .scene-block {
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 10px;
+    }
+    .scene-block-header {
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: var(--accent-gold);
+      margin-bottom: 6px;
+    }
+    .scene-block img { max-width: 100%; max-height: 200px; border-radius: 4px; object-fit: cover; }
+
+    .enemy-row-live {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1.5fr 1.5fr;
+      gap: 8px;
+      align-items: center;
+      background-color: var(--bg-element);
+      padding: 6px 8px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+    .enemy-hp-input {
+      width: 50px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      border-radius: 4px;
+      padding: 2px 4px;
+      text-align: center;
+    }
+
+    .item-chip {
+      background-color: var(--bg-element);
+      border: 1px solid var(--accent-gold);
+      color: var(--accent-gold);
+      padding: 4px 10px;
+      border-radius: 14px;
+      font-size: 0.75rem;
+      cursor: grab;
+    }
+    .item-chip.dragging { opacity: 0.4; }
+
+    /* ЧАТ */
+    .chat-sidebar {
+      position: fixed;
+      top: 0; right: 0;
+      width: var(--chat-width);
+      height: 100vh;
+      background: var(--bg-card);
+      border-left: 1px solid var(--border-color);
+      box-shadow: -5px 0 20px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.25s ease;
+      z-index: 1000;
+    }
+    .chat-sidebar.open { transform: translateX(0); }
+    .chat-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: bold;
+      color: var(--accent-gold);
+    }
+    .btn-modal-close { background:none; border:none; color: var(--text-muted); font-size: 1.3rem; cursor: pointer; }
+    .chat-recipient-row {
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+    }
+    .chat-recipient-row select {
+      flex: 1;
+      background: var(--bg-input);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 4px;
+    }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+    .chat-msg-bubble {
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      max-width: 90%;
+      background: var(--bg-element);
+      border: 1px solid var(--border-color);
+      align-self: flex-start;
+    }
+    .chat-msg-bubble.msg-own { background: #3b2a0f; border-color: var(--accent-gold); align-self: flex-end; }
+    .chat-msg-bubble.msg-secret { background: #31213d; border: 1px dashed #7a42a0; }
+    .chat-msg-author { font-size: 0.7rem; font-weight: bold; color: var(--accent-gold); margin-bottom: 2px; }
+    .chat-msg-time { font-size: 0.6rem; color: var(--text-muted); float: right; margin-top: 4px; margin-left: 8px; }
+    .chat-input-box { padding: 10px; border-top: 1px solid var(--border-color); display: flex; gap: 6px; }
+    .chat-input-box input {
+      flex: 1;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-main);
+      padding: 8px 10px;
+    }
+
+    @media (max-width: 900px) {
+      .chat-sidebar { width: 90vw; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-title-container">
+      <button onclick="window.location.href='/session_setup'" class="btn btn-dark" title="До списку сесій"><i class="fa-solid fa-arrow-left"></i></button>
+      <div>
+        <div style="font-weight:700; color: var(--accent-gold);" id="storyTitleDisplay">Історія</div>
+        <div style="font-size:0.75rem; color: var(--text-muted);">Код кімнати: <span id="roomCodeDisplay" style="font-family:monospace; font-weight:bold; color: var(--accent-gold);"></span></div>
+      </div>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button onclick="toggleChat()" class="btn btn-dark">
+        <i class="fa-solid fa-comments"></i> Чат <span id="unreadBadge" style="display:none; color:#ef4444;">●</span>
+      </button>
+      <button onclick="endSession()" class="btn btn-danger"><i class="fa-solid fa-stop"></i> Завершити сесію</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="panel-header"><h2 class="panel-title"><i class="fa-solid fa-users"></i> Учасники</h2></div>
+      <div class="panel-body" id="participantsContainer"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header"><h2 class="panel-title"><i class="fa-solid fa-scroll"></i> Сценарій</h2></div>
+      <div class="panel-body" id="actsContainer"></div>
+    </section>
+  </main>
+
+  <aside class="chat-sidebar" id="chatSidebar">
+    <div class="chat-header">
+      <span>💬 Чат сесії</span>
+      <button onclick="toggleChat()" class="btn-modal-close">&times;</button>
+    </div>
+    <div class="chat-recipient-row">
+      <label>Кому:</label>
+      <select id="chatRecipient">
+        <option value="all">📢 Усі (оголошення)</option>
+      </select>
+    </div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <form class="chat-input-box" onsubmit="sendDmMessage(event)">
+      <input type="text" id="chatInput" placeholder="Повідомлення..." autocomplete="off" required>
+      <button type="submit" class="btn btn-gold"><i class="fa-solid fa-paper-plane"></i></button>
+    </form>
+  </aside>
+
+  <script src="js/dm_live.js"></script>
+</body>
+</html>

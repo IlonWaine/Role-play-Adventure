@@ -416,7 +416,7 @@ if (dmLoginForm) dmLoginForm.addEventListener('submit', handleLogin);
     }
   }
 
-  function connectToLiveSession() {
+  async function connectToLiveSession() {
     const codeInput = document.getElementById('liveSessionCodeInput');
     const playerInput = document.getElementById('livePlayerIdInput');
 
@@ -432,11 +432,61 @@ if (dmLoginForm) dmLoginForm.addEventListener('submit', handleLogin);
       playerInput.style.borderColor = '#ef4444';
       hasError = true;
     }
-
     if (hasError) return;
 
-    // Редирект або дія підключення
-    // window.location.href = `player_live.html?room=${code}&player=${pId}`;
+    if (codeInput) codeInput.style.borderColor = '';
+    if (playerInput) playerInput.style.borderColor = '';
+
+    try {
+      // 1. Сесія за кодом кімнати
+      const sessionRes = await fetch(`/api/sessions/by-room/${encodeURIComponent(code)}`);
+      if (!sessionRes.ok) {
+        const err = await sessionRes.json().catch(() => ({}));
+        alert(err.detail || 'Сесію з таким кодом не знайдено.');
+        return;
+      }
+      const session = await sessionRes.json();
+
+      // 2. Гравець за складеним ID (dm_id-player_id)
+      const playerRes = await fetch(`/api/players/lookup/${encodeURIComponent(pId)}`);
+      if (!playerRes.ok) {
+        const err = await playerRes.json().catch(() => ({}));
+        alert(err.detail || 'Гравця з таким ID не знайдено.');
+        return;
+      }
+      const player = await playerRes.json();
+
+      // 3. Гравець мусить належати саме тому DM, який веде цю сесію
+      const dmIdFromCode = parseInt(pId.split('-')[0]);
+      if (dmIdFromCode !== session.dm_id) {
+        alert('Цей ID гравця не належить майстру цієї сесії.');
+        return;
+      }
+
+      // 4. Серед учасників сесії шукаємо персонажів саме цього гравця
+      const myCharacters = (session.participants || []).filter(c => c.player_id === player.id);
+
+      if (myCharacters.length === 0) {
+        alert('DM ще не додав вашого персонажа до цієї історії.');
+        return;
+      }
+
+      if (myCharacters.length === 1) {
+        window.location.href = `/character_ui?session_id=${session.id}&char_id=${myCharacters[0].id}`;
+        return;
+      }
+
+      // Кілька персонажів гравця в цій сесії - показуємо вибір
+      const pick = myCharacters.map((c, i) => `${i + 1}. ${c.name}`).join('\n');
+      const choice = prompt(`У вас кілька персонажів у цій сесії, оберіть номер:\n${pick}`);
+      const idx = parseInt(choice) - 1;
+      if (idx >= 0 && idx < myCharacters.length) {
+        window.location.href = `/character_ui?session_id=${session.id}&char_id=${myCharacters[idx].id}`;
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Помилка з'єднання з сервером.");
+    }
   }
 
 });
@@ -448,6 +498,6 @@ window.navigateTo = function(route) {
   } else if (route === 'story_builder') {
     window.location.href = '/story_navigation';
   } else if (route === 'live_session' || route === 'dmDashboardStep') {
-    window.location.href = 'dm_dashboard.html';
+    window.location.href = '/session_setup';
   }
 };

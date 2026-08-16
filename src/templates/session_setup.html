@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D Nexus Hub - Почати гру</title>
+    <link rel="stylesheet" href="css/player_navigation.css">
+    <style>
+        .player-actions { margin: 0.5rem 0; }
+        .btn-add-char {
+            cursor: pointer;
+            padding: 0.4rem 0.9rem;
+            border: 1px dashed #888;
+            border-radius: 6px;
+            background: transparent;
+            font-size: 0.85rem;
+        }
+        .btn-add-char:hover { background: rgba(0,0,0,0.05); }
+        .character-card-link { cursor: pointer; }
+        .character-card-link:hover { background: rgba(0,0,0,0.05); }
+        .room-code-badge {
+            font-family: monospace;
+            font-size: 0.9rem;
+            font-weight: bold;
+            background: rgba(217, 119, 6, 0.15);
+            border: 1px solid #d97706;
+            color: #d97706;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-left: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Почати гру</h1>
+            <button id="backBtn" class="btn-secondary">← До меню</button>
+        </header>
+
+        <section class="list-section">
+            <h2>Активні сесії (можна продовжити)</h2>
+            <div id="activeSessionsList" class="accordion-list"></div>
+        </section>
+
+        <section class="list-section">
+            <h2>Обрати історію для нової гри</h2>
+            <div id="storiesList" class="accordion-list"></div>
+        </section>
+    </div>
+
+    <script src="js/session_setup.js"></script>
+</body>
+</html>
