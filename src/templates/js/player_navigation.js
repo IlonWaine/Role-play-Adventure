@@ -87,7 +87,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const header = document.createElement("div");
             header.className = "player-header";
-            header.innerHTML = `<span>Гравець: ${player.name}</span> <span>Персонажів: ${player.characters.length} ▼</span>`;
+            header.innerHTML = `<span>Гравець: ${player.name} <span class="player-code-badge">ID: ${player.player_code}</span></span> <span>Персонажів: ${player.characters.length} ▼</span>`;
 
             // Кнопка створення нового персонажа для цього гравця.
             // Свідомо ЗА МЕЖАМИ charsList — інакше вона ховається разом

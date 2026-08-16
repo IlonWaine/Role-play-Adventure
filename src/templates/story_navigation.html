@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>D&D Nexus Hub - Кабінет DM</title>
+    <title>D&D Nexus Hub - Історії DM</title>
     <link rel="stylesheet" href="css/player_navigation.css">
     <!--
-      Тимчасовий fallback-стиль для нових елементів (player-actions / btn-add-char /
-      character-card-link), яких ще немає у player_navigation.css.
-      Якщо додасте ці класи у свій CSS-файл — цей блок можна видалити.
+      Тимчасовий fallback-стиль (аналогічно player_navigation.html),
+      поки немає окремого story_navigation.css.
     -->
     <style>
         .player-actions { margin: 0.5rem 0; }
@@ -23,38 +22,33 @@
         .btn-add-char:hover { background: rgba(0,0,0,0.05); }
         .character-card-link { cursor: pointer; }
         .character-card-link:hover { background: rgba(0,0,0,0.05); }
-        .player-code-badge {
-            font-size: 0.75rem;
-            font-weight: normal;
-            opacity: 0.7;
-            margin-left: 0.4rem;
-        }
+        .new-story-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+        .new-story-row input { flex: 1; }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Панель Dungeon Master</h1>
+            <h1>Історії Dungeon Master'a</h1>
             <button id="logoutBtn" class="btn-secondary">Вийти</button>
         </header>
 
         <section class="forms-section">
             <div class="card">
-                <h3>Додати Гравця</h3>
-                <form id="addPlayerForm">
-                    <input type="text" id="playerNameInput" placeholder="Ім'я гравця" required>
-                    <button type="submit" class="btn-primary">Створити</button>
+                <h3>Створити нову історію</h3>
+                <form id="addStoryForm" class="new-story-row">
+                    <input type="text" id="storyTitleInput" placeholder="Назва історії" required>
+                    <button type="submit" class="btn-primary">+ Створити</button>
                 </form>
             </div>
         </section>
 
         <section class="list-section">
-            <h2>Ваші Гравці та Персонажі</h2>
-            <div id="playersList" class="accordion-list">
-                </div>
+            <h2>Ваші Історії</h2>
+            <div id="storiesList" class="accordion-list"></div>
         </section>
     </div>
 
-    <script src="js/player_navigation.js"></script>
+    <script src="js/story_navigation.js"></script>
 </body>
 </html>

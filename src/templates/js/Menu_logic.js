@@ -7,14 +7,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentRole = null;
   let currentDMUser = null; // Зберігає авторизованого DM (якщо є)
 
-  // Mock-база даних персонажів для гравців
-  const registeredCharacters = [
-    { id: 'char_1', name: 'Арагорн', class: 'Воїн 5 ур.', playerId: 'max_2024', hp: '28/30', stats: 'STR 16, DEX 14', items: ['Довгий меч', 'Зілля HP'] },
-    { id: 'char_2', name: 'Леголас', class: 'Слідопит 5 ур.', playerId: 'olena_dnd', hp: '18/18', stats: 'STR 10, DEX 18', items: ['Довгий лук', 'Стріли (30)'] },
-    { id: 'char_3', name: 'Ґімлі', class: 'Варвар 5 ур.', playerId: 'max_2024', hp: '35/35', stats: 'STR 18, DEX 12', items: ['Бойова сокира'] },
-    { id: 'char_4', name: 'Ґендальф', class: 'Маг 3 ур.', playerId: 'alex_wizard', hp: '12/20', stats: 'INT 18, WIS 14', items: ['Посох', 'Книга заклинань'] }
-  ];
-
   // DOM Elements
   const roleStep = document.getElementById('roleStep');
   const dmStep = document.getElementById('dmStep');
@@ -360,9 +352,9 @@ if (dmLoginForm) dmLoginForm.addEventListener('submit', handleLogin);
     }
   }
 
-  function fetchCharactersByPlayerId() {
+  async function fetchCharactersByPlayerId() {
     const idInput = document.getElementById('playerIdOnlyInput');
-    const val = idInput?.value.trim().toLowerCase();
+    const val = idInput?.value.trim();
     const listContainer = document.getElementById('viewOnlyCharList');
     if (!listContainer) return;
 
@@ -375,32 +367,53 @@ if (dmLoginForm) dmLoginForm.addEventListener('submit', handleLogin);
       idInput.style.borderColor = '';
     }
 
-    const myChars = registeredCharacters.filter(c => c.playerId.toLowerCase() === val);
+    listContainer.innerHTML = `<div class="text-center text-subtle" style="font-size:0.75rem; padding: 1rem;">Пошук...</div>`;
 
-    if (myChars.length === 0) {
+    try {
+      const response = await fetch(`/api/players/lookup/${encodeURIComponent(val)}`);
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        listContainer.innerHTML = `<div class="text-center text-subtle" style="font-size:0.75rem; padding: 1rem;">
+          ${err.detail || `Гравця з ID "${val}" не знайдено.`}
+        </div>`;
+        return;
+      }
+
+      const player = await response.json();
+      listContainer.innerHTML = '';
+
+      if (!player.characters || player.characters.length === 0) {
+        listContainer.innerHTML = `<div class="text-center text-subtle" style="font-size:0.75rem; padding: 1rem;">
+          У гравця "${player.name}" ще немає створених персонажів.
+        </div>`;
+        return;
+      }
+
+      player.characters.forEach(c => {
+        const item = document.createElement('div');
+        item.className = 'char-item';
+        item.innerHTML = `
+          <div class="char-info">
+            <h5><i class="fa-solid fa-user-shield"></i> ${c.name}</h5>
+            <p>${c.role || 'Роль не вказана'}</p>
+          </div>
+          <button class="btn btn-blue" style="font-size:0.65rem; padding:0.3rem 0.6rem;">
+            🔍 Відкрити
+          </button>
+        `;
+
+        item.querySelector('button').addEventListener('click', () => {
+          window.location.href = `/character_creation?char_id=${c.id}&player_id=${player.id}`;
+        });
+        listContainer.appendChild(item);
+      });
+    } catch (err) {
+      console.error(err);
       listContainer.innerHTML = `<div class="text-center text-subtle" style="font-size:0.75rem; padding: 1rem;">
-        Персонажів з Player ID "${val}" не знайдено.
+        Помилка з'єднання з сервером.
       </div>`;
-      return;
     }
-
-    myChars.forEach(c => {
-      const item = document.createElement('div');
-      item.className = 'char-item';
-      item.innerHTML = `
-        <div class="char-info">
-          <h5><i class="fa-solid fa-user-shield"></i> ${c.name}</h5>
-          <p>${c.class} • ${c.stats}</p>
-          <p style="color: var(--accent-gold);">🎒 Лут: ${c.items.join(', ')}</p>
-        </div>
-        <button class="btn btn-blue" style="font-size:0.65rem; padding:0.3rem 0.6rem;" data-id="${c.id}">
-          🔍 Відкрити
-        </button>
-      `;
-
-      item.querySelector('button').addEventListener('click', () => openCharacterSheet(c));
-      listContainer.appendChild(item);
-    });
   }
 
   function connectToLiveSession() {
@@ -426,10 +439,6 @@ if (dmLoginForm) dmLoginForm.addEventListener('submit', handleLogin);
     // window.location.href = `player_live.html?room=${code}&player=${pId}`;
   }
 
-  function openCharacterSheet(char) {
-    // В майбутньому тут можна відкривати модальне вікно замість системного повідомлення
-    console.log('Картка персонажа:', char);
-  }
 });
 
 // Global navigation router for DM Actions
@@ -437,7 +446,7 @@ window.navigateTo = function(route) {
   if (route === 'create_character') {
     window.location.href = '/player_navigation';
   } else if (route === 'story_builder') {
-    window.location.href = '/dm_story_builder.html';
+    window.location.href = '/story_navigation';
   } else if (route === 'live_session' || route === 'dmDashboardStep') {
     window.location.href = 'dm_dashboard.html';
   }

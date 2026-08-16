@@ -15,6 +15,7 @@ class DMUser(Base):
 
     # Зв'язок із гравцями
     players = relationship("Player", back_populates="dm", cascade="all, delete-orphan")
+    stories = relationship("Story", back_populates="dm", cascade="all, delete-orphan")
 
 
 class Player(Base):
@@ -62,3 +63,25 @@ class Character(Base):
 
     # Зв'язок
     player = relationship("Player", back_populates="characters")
+
+
+class Story(Base):
+    """
+    Історія/пригода DM. Персонажі-учасники, акти, сцени та їх блоки
+    (опис/візуал/вороги/предмети) мають свідомо змінну, вкладену
+    структуру - тому зберігаємо їх одним JSON-блобом, а не окремими
+    таблицями. 'title' винесено окремою колонкою для списку історій.
+    """
+    __tablename__ = "stories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    dm_id = Column(Integer, ForeignKey("dm_users.id"), nullable=False)
+
+    title = Column(String, nullable=False, default="Нова історія")
+    # {"characters": [...], "acts": [...]} - формат ідентичний adventureData
+    # у DM_create.html
+    data_json = Column(Text, default='{"characters": [], "acts": []}')
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    dm = relationship("DMUser", back_populates="stories")

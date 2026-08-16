@@ -2,7 +2,7 @@ import hashlib
 import json
 import os
 import secrets
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.responses import FileResponse
@@ -122,6 +122,33 @@ def character_to_dict(c: database_structure.Character) -> dict:
     }
 
 
+class StoryCreateSchema(BaseModel):
+    dm_id: int
+    title: str = "Нова історія"
+
+
+class StoryUpdateSchema(BaseModel):
+    """
+    characters/acts навмисно нетипізовані (List[Dict[str, Any]]):
+    сцени всередині acts містять блоки різної форми (опис/візуал/
+    вороги/предмети), жорстка Pydantic-схема тут тільки заважала б.
+    """
+    title: Optional[str] = None
+    characters: Optional[List[Dict[str, Any]]] = None
+    acts: Optional[List[Dict[str, Any]]] = None
+
+
+def story_to_dict(s: database_structure.Story) -> dict:
+    payload = json.loads(s.data_json or "{}")
+    return {
+        "id": s.id,
+        "dm_id": s.dm_id,
+        "title": s.title,
+        "characters": payload.get("characters", []),
+        "acts": payload.get("acts", []),
+    }
+
+
 # =============================================================================
 # API: Auth
 # =============================================================================
@@ -179,6 +206,9 @@ def get_dm_players(dm_id: int, db: Session = Depends(database.get_db)):
         result.append({
             "id": p.id,
             "name": p.name,
+            # Публічний ID для гравця: "DM_ID-PLAYER_ID" -> унікальний навіть
+            # якщо у різних DM випадково збігається внутрішній player.id.
+            "player_code": f"{p.dm_id}-{p.id}",
             "characters": [
                 {"id": c.id, "name": c.name, "role": c.role}
                 for c in p.characters
@@ -194,7 +224,12 @@ def create_player(data: PlayerCreateSchema, db: Session = Depends(database.get_d
     db.add(new_player)
     db.commit()
     db.refresh(new_player)
-    return {"id": new_player.id, "name": new_player.name, "characters": []}
+    return {
+        "id": new_player.id,
+        "name": new_player.name,
+        "player_code": f"{new_player.dm_id}-{new_player.id}",
+        "characters": [],
+    }
 
 
 @app.delete("/api/players/{player_id}")
@@ -205,6 +240,40 @@ def delete_player(player_id: int, db: Session = Depends(database.get_db)):
     db.delete(player)
     db.commit()
     return {"message": "Гравця видалено"}
+
+
+@app.get("/api/players/lookup/{player_code}")
+def lookup_player(player_code: str, db: Session = Depends(database.get_db)):
+    """
+    Гравцівський вхід за публічним кодом "DM_ID-PLAYER_ID".
+    Формат навмисно складений з двох частин, щоб гравці різних DM
+    не могли випадково (чи навмисно) підібрати чужий числовий ID.
+    """
+    parts = player_code.strip().split("-")
+    if len(parts) != 2 or not parts[0].isdigit() or not parts[1].isdigit():
+        raise HTTPException(
+            status_code=400,
+            detail="Невірний формат ID. Очікується формат ДМ-Гравець, напр. 3-15",
+        )
+
+    dm_id, player_id = int(parts[0]), int(parts[1])
+    player = db.query(database_structure.Player).filter(
+        database_structure.Player.id == player_id,
+        database_structure.Player.dm_id == dm_id,
+    ).first()
+
+    if not player:
+        raise HTTPException(status_code=404, detail="Гравця з таким ID не знайдено")
+
+    return {
+        "id": player.id,
+        "name": player.name,
+        "player_code": f"{player.dm_id}-{player.id}",
+        "characters": [
+            {"id": c.id, "name": c.name, "role": c.role}
+            for c in player.characters
+        ],
+    }
 
 
 # =============================================================================
@@ -267,6 +336,76 @@ def delete_character(char_id: int, db: Session = Depends(database.get_db)):
 
 
 # =============================================================================
+# API: Stories (Історії / Пригоди)
+# =============================================================================
+@app.get("/api/dm/{dm_id}/stories")
+def get_dm_stories(dm_id: int, db: Session = Depends(database.get_db)):
+    """Список історій конкретного DM (лише id + назва, без важкого JSON)."""
+    stories = db.query(database_structure.Story).filter(
+        database_structure.Story.dm_id == dm_id
+    ).all()
+    return [{"id": s.id, "title": s.title} for s in stories]
+
+
+@app.post("/api/stories", status_code=status.HTTP_201_CREATED)
+def create_story(data: StoryCreateSchema, db: Session = Depends(database.get_db)):
+    """DM тисне '+ Нова історія' у story_navigation -> створюємо порожню
+    заготовку і повертаємо її id, щоб фронтенд одразу перейшов у редактор."""
+    dm = db.query(database_structure.DMUser).get(data.dm_id)
+    if not dm:
+        raise HTTPException(status_code=404, detail="DM не знайдено")
+
+    new_story = database_structure.Story(
+        dm_id=data.dm_id,
+        title=data.title or "Нова історія",
+        data_json=json.dumps({"characters": [], "acts": []}),
+    )
+    db.add(new_story)
+    db.commit()
+    db.refresh(new_story)
+    return story_to_dict(new_story)
+
+
+@app.get("/api/stories/{story_id}")
+def get_story(story_id: int, db: Session = Depends(database.get_db)):
+    story = db.query(database_structure.Story).get(story_id)
+    if not story:
+        raise HTTPException(status_code=404, detail="Історію не знайдено")
+    return story_to_dict(story)
+
+
+@app.put("/api/stories/{story_id}")
+def update_story(story_id: int, data: StoryUpdateSchema, db: Session = Depends(database.get_db)):
+    story = db.query(database_structure.Story).get(story_id)
+    if not story:
+        raise HTTPException(status_code=404, detail="Історію не знайдено")
+
+    if data.title is not None:
+        story.title = data.title
+
+    existing_payload = json.loads(story.data_json or "{}")
+    if data.characters is not None:
+        existing_payload["characters"] = data.characters
+    if data.acts is not None:
+        existing_payload["acts"] = data.acts
+    story.data_json = json.dumps(existing_payload)
+
+    db.commit()
+    db.refresh(story)
+    return story_to_dict(story)
+
+
+@app.delete("/api/stories/{story_id}")
+def delete_story(story_id: int, db: Session = Depends(database.get_db)):
+    story = db.query(database_structure.Story).get(story_id)
+    if not story:
+        raise HTTPException(status_code=404, detail="Історію не знайдено")
+    db.delete(story)
+    db.commit()
+    return {"message": "Історію видалено"}
+
+
+# =============================================================================
 # Статичні файли та сторінки
 # =============================================================================
 # ВАЖЛИВО: css/js мають лежати саме в templates/css та templates/js,
@@ -298,4 +437,20 @@ def get_character_creation_page():
     file_path = os.path.join(TEMPLATES_DIR, "character_creation.html")
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File character_creation.html not found")
+    return FileResponse(file_path)
+
+
+@app.get("/story_navigation")
+def get_story_navigation_page():
+    file_path = os.path.join(TEMPLATES_DIR, "story_navigation.html")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File story_navigation.html not found")
+    return FileResponse(file_path)
+
+
+@app.get("/dm_create")
+def get_dm_create_page():
+    file_path = os.path.join(TEMPLATES_DIR, "DM_create.html")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File DM_create.html not found")
     return FileResponse(file_path)

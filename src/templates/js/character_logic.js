@@ -1,5 +1,5 @@
-// Завантаження збережених даних від DM або базові дефолтні значення
 const defaultData = {
+  name: "Козак Крутивус",
   maxHP: 23,
   currentHP: 16,
   ac: 13,
@@ -31,14 +31,29 @@ const defaultData = {
   portraitUrl: "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=800&q=80"
 };
 
+// Чат-історія за замовчуванням
+const defaultMessages = [
+  { sender: "DM", type: "dm", text: "Ласкаво просимо до сесії! Ви знаходитесь перед входом у стару вежу.", time: "19:00" },
+  { sender: "Маг Олексій", type: "general", text: "Я оглядаю магічну ауру дверей.", time: "19:02" },
+  { sender: "DM", type: "secret", text: "🤫 (Особисто вам): Ви відчуваєте запах свіжого сапла з-під дверей.", time: "19:05" }
+];
+
 let charData = JSON.parse(localStorage.getItem('dnd_character_data')) || defaultData;
+let chatMessages = JSON.parse(localStorage.getItem('dnd_chat_messages')) || defaultMessages;
 let currentHP = charData.currentHP;
 
 function renderCharacter() {
+  document.getElementById('char-name').value = charData.name || "Козак Крутивус";
   document.getElementById('char-title').value = `Сесія: ${charData.session}`;
   document.getElementById('max-hp').innerText = charData.maxHP;
   document.getElementById('current-hp').innerText = currentHP;
   document.getElementById('ac-val').innerText = charData.ac;
+
+  // Редагування ім'я персонажа
+  document.getElementById('char-name').addEventListener('input', (e) => {
+    charData.name = e.target.value;
+    saveCurrentState();
+  });
 
   // Характеристики
   const statsContainer = document.getElementById('stats-container');
@@ -67,6 +82,7 @@ function renderCharacter() {
 
   updateHealthBar();
   updateCoinsUI();
+  renderChat();
 }
 
 function renderInventory() {
@@ -151,6 +167,13 @@ function tradeIndividualItem(itemName) {
   const targetPlayer = prompt(`Кому передати предмет "${itemName}"?\nВведіть ім'я гравця:`);
   if (targetPlayer) {
     alert(`Запит на передачу "${itemName}" відправлено гравцю ${targetPlayer}.`);
+    // Автоматично генеруємо таємне повідомлення про передачу
+    addChatMessage({
+      sender: charData.name,
+      type: "secret",
+      text: `🔄 Запропоновано обмін предметом [${itemName}] з ${targetPlayer}.`,
+      time: getCurrentTime()
+    });
   }
 }
 
@@ -168,6 +191,103 @@ function toggleBlock(headerElement) {
 
 function saveCurrentState() {
   localStorage.setItem('dnd_character_data', JSON.stringify(charData));
+}
+
+// 4. ЧАТ ТА ТАЄМНИЦІ
+function toggleChat() {
+  const layout = document.getElementById('app-layout');
+  layout.classList.toggle('chat-open');
+  document.getElementById('unread-badge').style.display = 'none';
+}
+
+function renderChat() {
+  const container = document.getElementById('chat-messages');
+  container.innerHTML = chatMessages.map(msg => {
+    let bubbleClass = "msg-general";
+    if (msg.type === "own") bubbleClass = "msg-own";
+    else if (msg.type === "dm") bubbleClass = "msg-dm";
+    else if (msg.type === "secret") bubbleClass = "msg-secret";
+
+    return `
+      <div class="msg-bubble ${bubbleClass}">
+        <div class="msg-author">${msg.sender}</div>
+        <div class="msg-text">${msg.text}</div>
+        <span class="msg-time">${msg.time}</span>
+      </div>
+    `;
+  }).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+function sendMessage(e) {
+  e.preventDefault();
+  const input = document.getElementById('chat-input');
+  const recipient = document.getElementById('chat-recipient');
+  const text = input.value.trim();
+
+  if (!text) return;
+
+  let msgType = "own";
+  let targetText = text;
+
+  if (recipient.value !== "all") {
+    msgType = "secret";
+    const recipientName = recipient.options[recipient.selectedIndex].text;
+    targetText = `🔒 (Для ${recipientName}): ${text}`;
+  }
+
+  addChatMessage({
+    sender: charData.name,
+    type: msgType,
+    text: targetText,
+    time: getCurrentTime()
+  });
+
+  input.value = "";
+}
+
+function addChatMessage(msgObj) {
+  chatMessages.push(msgObj);
+  localStorage.setItem('dnd_chat_messages', JSON.stringify(chatMessages));
+  renderChat();
+  
+  // Якщо чат закритий — показуємо крапку непрочитаного
+  if (!document.getElementById('app-layout').classList.contains('chat-open')) {
+    document.getElementById('unread-badge').style.display = 'inline';
+  }
+}
+
+function getCurrentTime() {
+  const now = new Date();
+  return now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+}
+
+// 5. МОБІЛЬНІ СВАЙПИ (SWIPE TO OPEN CHAT)
+let touchStartX = 0;
+let touchEndX = 0;
+
+document.addEventListener('touchstart', e => {
+  touchStartX = e.changedTouches[0].screenX;
+}, false);
+
+document.addEventListener('touchend', e => {
+  touchEndX = e.changedTouches[0].screenX;
+  handleSwipe();
+}, false);
+
+function handleSwipe() {
+  const layout = document.getElementById('app-layout');
+  const swipeDistance = touchStartX - touchEndX;
+
+  // Свайп вліво (відкрити чат)
+  if (swipeDistance > 70 && !layout.classList.contains('chat-open')) {
+    layout.classList.add('chat-open');
+    document.getElementById('unread-badge').style.display = 'none';
+  }
+  // Свайп вправо (закрити чат)
+  else if (swipeDistance < -70 && layout.classList.contains('chat-open')) {
+    layout.classList.remove('chat-open');
+  }
 }
 
 // Ініціалізація

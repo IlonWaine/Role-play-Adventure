@@ -3,302 +3,1168 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DM Story Builder & Party Manager</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>DM Story Builder & Campaign Manager</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
-    body { background-color: #0d0f12; color: #e2e8f0; font-family: system-ui, sans-serif; }
-    .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-    .custom-scrollbar::-webkit-scrollbar-track { background: #161920; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #d97706; }
-    .bg-card { background-color: #161920; }
-    .bg-element { background-color: #1f242d; }
+    :root {
+      --bg-main: #0d0f12;
+      --bg-card: #161920;
+      --bg-element: #1f242d;
+      --bg-input: #12151c;
+      --border-color: #2d3748;
+      --accent-gold: #d97706;
+      --accent-gold-hover: #b45309;
+      --accent-red: #991b1b;
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-card); }
+    ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent-gold); }
+
+    header {
+      background-color: var(--bg-card);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    }
+
+    .header-title-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .adventure-title-input {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--accent-gold);
+      font-size: 1.25rem;
+      font-weight: bold;
+      padding: 4px 8px;
+      border-radius: 6px;
+      width: 60%;
+      transition: all 0.2s;
+    }
+
+    .adventure-title-input:hover, .adventure-title-input:focus {
+      border-color: var(--border-color);
+      background-color: var(--bg-input);
+      outline: none;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background-color 0.2s, border-color 0.2s;
+    }
+
+    .btn-gold { background-color: var(--accent-gold); color: #000; }
+    .btn-gold:hover { background-color: var(--accent-gold-hover); }
+
+    .btn-outline { background-color: transparent; color: var(--accent-gold); border-color: var(--accent-gold); }
+    .btn-outline:hover { background-color: rgba(217, 119, 6, 0.1); }
+
+    .btn-danger { background-color: transparent; color: #ef4444; border-color: #ef4444; }
+    .btn-danger:hover { background-color: rgba(239, 68, 68, 0.1); }
+
+    .btn-dark { background-color: var(--bg-element); color: var(--text-main); border-color: var(--border-color); }
+    .btn-dark:hover { background-color: #2a303c; }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 16px;
+      padding: 16px;
+      overflow: hidden;
+    }
+
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; overflow-y: auto; }
+      body { overflow: auto; }
+    }
+
+    .panel {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    }
+
+    .panel-header {
+      padding: 12px 16px;
+      background-color: rgba(0, 0, 0, 0.2);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent-gold);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    input, textarea {
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      width: 100%;
+    }
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent-gold);
+    }
+
+    /* DRAG & DROP STYLES */
+    .dragging { opacity: 0.4; }
+    .drag-handle { cursor: grab; color: var(--text-muted); padding: 2px 6px; }
+    .drag-handle:active { cursor: grabbing; }
+
+    /* DROPZONE FOR IMAGES */
+    .image-dropzone {
+      border: 2px dashed var(--border-color);
+      border-radius: 6px;
+      padding: 10px;
+      text-align: center;
+      background-color: var(--bg-input);
+      cursor: pointer;
+      position: relative;
+      transition: border-color 0.2s;
+    }
+    .image-dropzone.dragover { border-color: var(--accent-gold); background-color: rgba(217, 119, 6, 0.05); }
+    .image-dropzone img { max-width: 100%; max-height: 200px; border-radius: 4px; object-fit: cover; margin-top: 6px; }
+    .image-dropzone .dropzone-text { font-size: 0.75rem; color: var(--text-muted); }
+
+    /* CHARACTERS */
+    .char-card {
+      background-color: var(--bg-element);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .char-card-header { display: flex; justify-content: space-between; gap: 8px; }
+    .char-title-input { font-weight: 700; color: var(--accent-gold); }
+    .char-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stat-box {
+      background-color: var(--bg-input);
+      padding: 4px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.75rem;
+    }
+    .stat-box input { width: 40px; padding: 2px; text-align: center; }
+
+    /* ACTS & SCENES */
+    .act-card {
+      background-color: var(--bg-element);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .act-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+    }
+    .act-title-input {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: var(--accent-gold);
+      background: transparent;
+      border: 1px solid transparent;
+    }
+
+    .scenes-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 30px;
+      padding: 4px;
+      border: 1px dashed rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+    }
+
+    .scene-card {
+      background-color: #161920;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .scene-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--accent-gold);
+      font-weight: 600;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 6px;
+    }
+
+    .scene-blocks-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 20px;
+    }
+
+    /* SCENE SUB-BLOCKS */
+    .scene-block {
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .scene-block-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: var(--accent-gold);
+    }
+
+    /* ENEMY ROW WITH ICONS */
+    .enemy-row {
+      display: grid;
+      grid-template-columns: 2fr 1.2fr 1fr 1.5fr auto;
+      gap: 6px;
+      align-items: center;
+      background-color: var(--bg-element);
+      padding: 6px;
+      border-radius: 4px;
+    }
+    .enemy-input-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.8rem;
+    }
+    .enemy-input-group input { padding: 4px; font-size: 0.75rem; }
+
+    /* ITEMS */
+    .item-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .add-block-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 4px;
+      border-top: 1px dashed var(--border-color);
+      padding-top: 8px;
+    }
+
+    .char-slot-empty { font-size: 0.85rem; color: var(--text-muted); }
+
+    /* MODAL: ВИБІР ГРАВЦЯ / ПЕРСОНАЖА */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 16px;
+    }
+    .modal-box {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 420px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+    .modal-header {
+      padding: 12px 16px;
+      background-color: rgba(0, 0, 0, 0.2);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 700;
+      color: var(--accent-gold);
+    }
+    .btn-modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.4rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .btn-modal-close:hover { color: var(--text-main); }
+    .modal-body {
+      padding: 12px 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .modal-list-item {
+      background-color: var(--bg-element);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 8px 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+    .modal-list-item:hover { background-color: #2a303c; }
+    .modal-item-meta { font-size: 0.75rem; color: var(--text-muted); }
+    .modal-empty { font-size: 0.85rem; color: var(--text-muted); padding: 8px 0; }
+    .modal-loading { font-size: 0.85rem; color: var(--text-muted); padding: 8px 0; text-align: center; }
   </style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden">
+<body>
 
-  <header class="bg-card border-b border-gray-800 px-6 py-3 flex items-center justify-between shadow-lg">
-    <div class="flex items-center space-x-3">
-      <i class="fa-solid fa-book-bookmark text-amber-500 text-xl"></i>
-      <h1 class="text-lg font-bold text-amber-400">DM Campaign & Story Hub</h1>
-    </div>
-    <div class="flex items-center gap-3">
-      <button onclick="saveCampaignState()" class="bg-amber-600 hover:bg-amber-500 text-gray-950 font-bold px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5">
-        <i class="fa-solid fa-floppy-disk"></i> Зберегти кампанію
+  <header>
+    <div class="header-title-container">
+      <button onclick="window.location.href='/story_navigation'" class="btn btn-dark" title="До списку історій">
+        <i class="fa-solid fa-arrow-left"></i>
       </button>
+      <i class="fa-solid fa-book-bookmark" style="color: var(--accent-gold); font-size: 1.2rem;"></i>
+      <input type="text" id="adventureTitle" class="adventure-title-input" value="Прокляття Старого Лісу">
     </div>
+    <button onclick="saveAdventure()" class="btn btn-gold">
+      <i class="fa-solid fa-floppy-disk"></i> Зберегти пригоду
+    </button>
   </header>
 
-  <main class="flex-1 grid grid-cols-12 gap-4 p-4 overflow-hidden">
-
-    <section class="col-span-12 lg:col-span-4 flex flex-col gap-4 overflow-hidden">
-      
-      <div class="bg-card rounded-xl border border-gray-800 flex-1 flex flex-col overflow-hidden shadow-xl">
-        <div class="p-3 border-b border-gray-800 bg-gray-900/60 flex justify-between items-center">
-          <h2 class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
-            <i class="fa-solid fa-users-gear"></i> Групи та Персонажі
-          </h2>
-          <button onclick="openCreatePartyModal()" class="text-xs bg-amber-600/20 text-amber-300 border border-amber-500/30 hover:bg-amber-600/30 px-2 py-1 rounded transition">
-            + Нова група
-          </button>
-        </div>
-
-        <div class="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar" id="partyContainer">
-          </div>
-      </div>
-
-    </section>
-
-
-    <section class="col-span-12 lg:col-span-8 bg-card rounded-xl border border-gray-800 flex flex-col overflow-hidden shadow-xl">
-      
-      <div class="p-3 border-b border-gray-800 bg-gray-900/60 flex justify-between items-center">
-        <div class="flex items-center gap-2">
-          <i class="fa-solid fa-scroll text-amber-400"></i>
-          <h2 class="text-xs font-bold text-amber-400 uppercase tracking-wider">Сценарій: Глава 1 — "Темний Ліс"</h2>
-        </div>
-        <button onclick="addNewSceneBlock()" class="bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 text-xs px-3 py-1 rounded transition flex items-center gap-1">
-          <i class="fa-solid fa-plus text-amber-400"></i> Додати сцену
+  <main>
+    <section class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title"><i class="fa-solid fa-users"></i> Персонажі Гравців</h2>
+        <button onclick="addCharacter()" class="btn btn-outline" style="font-size: 0.75rem; padding: 2px 6px;">
+          + Персонаж
         </button>
       </div>
-
-      <div class="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar" id="storyTimeline">
-        
-        <div class="bg-element rounded-xl border border-gray-800 p-4 space-y-3 relative shadow-md">
-          <div class="flex justify-between items-center border-b border-gray-700/60 pb-2">
-            <span class="text-xs font-bold text-amber-400 flex items-center gap-2">
-              <i class="fa-solid fa-map-location-dot"></i> Сцена 1: Закинута таверна "Сліпий Крук"
-            </span>
-            <span class="text-[10px] bg-gray-800 px-2 py-0.5 rounded text-gray-400">Локація / Дослідження</span>
-          </div>
-          
-          <p class="text-xs text-gray-300 italic bg-gray-900/50 p-2.5 rounded border border-gray-800">
-            "Занедбана будівля з проваленим дахом. Повітря пахне сирістю та старим деревом. У кутку лежить розкрита скриня..."
-          </p>
-
-          <div class="mt-3 bg-gray-900/80 p-3 rounded-lg border border-amber-500/20">
-            <div class="text-[11px] font-bold text-amber-300 mb-2 flex items-center gap-1.5">
-              <i class="fa-solid fa-sack-dollar"></i> Знайдений лут у локації:
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-              <div class="flex justify-between items-center bg-gray-800 p-2 rounded border border-gray-700">
-                <div>
-                  <div class="text-xs font-bold text-gray-100">🗡️ Старовинний Кинжал</div>
-                  <div class="text-[10px] text-gray-400">1d4+1 колючої шкоди</div>
-                </div>
-                <button onclick="quickDropLoot('Старовинний Кинжал')" class="text-[10px] bg-amber-600 hover:bg-amber-500 text-gray-950 font-bold px-2 py-1 rounded transition">
-                  🎁 Видати
-                </button>
-              </div>
-
-              <div class="flex justify-between items-center bg-gray-800 p-2 rounded border border-gray-700">
-                <div>
-                  <div class="text-xs font-bold text-gray-100">🧪 Зілля малого лікування</div>
-                  <div class="text-[10px] text-gray-400">Відновлює 2d4+2 HP</div>
-                </div>
-                <button onclick="quickDropLoot('Зілля малого лікування')" class="text-[10px] bg-amber-600 hover:bg-amber-500 text-gray-950 font-bold px-2 py-1 rounded transition">
-                  🎁 Видати
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-element rounded-xl border border-red-900/40 p-4 space-y-3 relative shadow-md">
-          <div class="flex justify-between items-center border-b border-gray-700/60 pb-2">
-            <span class="text-xs font-bold text-red-400 flex items-center gap-2">
-              <i class="fa-solid fa-skull"></i> Сцена 2: Засідка Гоблінів (Бойова зустріч)
-            </span>
-            <span class="text-[10px] bg-red-950/60 text-red-300 px-2 py-0.5 rounded border border-red-800/40">Бой</span>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-            
-            <div class="bg-gray-900 p-3 rounded-lg border border-gray-800 space-y-2">
-              <div class="flex justify-between items-center">
-                <span class="text-xs font-bold text-gray-200">👹 Гоблін-Ватажок</span>
-                <span class="text-xs font-bold text-red-400">КД: 13</span>
-              </div>
-              
-              <div class="flex items-center justify-between bg-gray-800 p-1.5 rounded border border-gray-700">
-                <span class="text-[11px] text-gray-400">HP:</span>
-                <div class="flex items-center gap-1">
-                  <button onclick="updateEnemyHP('goblin1', -5)" class="px-1.5 py-0.5 bg-red-950 hover:bg-red-900 text-red-300 rounded text-[10px] font-bold border border-red-800">-5</button>
-                  <button onclick="updateEnemyHP('goblin1', -1)" class="px-1.5 py-0.5 bg-red-950 hover:bg-red-900 text-red-300 rounded text-[10px] font-bold border border-red-800">-1</button>
-                  <span id="goblin1-hp" class="text-xs font-bold text-emerald-400 px-2">12 / 12</span>
-                  <button onclick="updateEnemyHP('goblin1', 1)" class="px-1.5 py-0.5 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 rounded text-[10px] font-bold border border-emerald-800">+1</button>
-                </div>
-              </div>
-            </div>
-
-            <div class="bg-gray-900 p-3 rounded-lg border border-gray-800 space-y-2">
-              <div class="flex justify-between items-center">
-                <span class="text-xs font-bold text-gray-200">🏹 Гоблін-Лучник</span>
-                <span class="text-xs font-bold text-red-400">КД: 12</span>
-              </div>
-              
-              <div class="flex items-center justify-between bg-gray-800 p-1.5 rounded border border-gray-700">
-                <span class="text-[11px] text-gray-400">HP:</span>
-                <div class="flex items-center gap-1">
-                  <button onclick="updateEnemyHP('goblin2', -5)" class="px-1.5 py-0.5 bg-red-950 hover:bg-red-900 text-red-300 rounded text-[10px] font-bold border border-red-800">-5</button>
-                  <button onclick="updateEnemyHP('goblin2', -1)" class="px-1.5 py-0.5 bg-red-950 hover:bg-red-900 text-red-300 rounded text-[10px] font-bold border border-red-800">-1</button>
-                  <span id="goblin2-hp" class="text-xs font-bold text-emerald-400 px-2">7 / 7</span>
-                  <button onclick="updateEnemyHP('goblin2', 1)" class="px-1.5 py-0.5 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 rounded text-[10px] font-bold border border-emerald-800">+1</button>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-      </div>
+      <div class="panel-body" id="charactersContainer"></div>
     </section>
 
+    <section class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title"><i class="fa-solid fa-scroll"></i> Сценарій Пригоди</h2>
+        <button onclick="addAct()" class="btn btn-outline">
+          <i class="fa-solid fa-plus"></i> Додати Акт
+        </button>
+      </div>
+      <div class="panel-body" id="actsContainer"></div>
+    </section>
   </main>
 
   <script>
-    // State: Groups & Players Assignment
-    let campaignData = {
-      parties: [
-        {
-          id: 'party-1',
-          name: 'Основна група (П\'ятниця)',
-          players: [
-            { id: 'p1', charName: 'Арагорн', className: 'Воїн 5', userAssigned: 'Максим (Telegram: @max)', hp: 28, maxHp: 30 },
-            { id: 'p2', charName: 'Леголас', className: 'Слідопит 5', userAssigned: 'Олена', hp: 18, maxHp: 18 }
-          ]
-        },
-        {
-          id: 'party-2',
-          name: 'Резервна група (Ваншот)',
-          players: [
-            { id: 'p3', charName: 'Ґімлі', className: 'Варвар 3', userAssigned: 'Олексій', hp: 35, maxHp: 35 }
-          ]
-        }
-      ],
-      enemiesHP: {
-        goblin1: { current: 12, max: 12 },
-        goblin2: { current: 7, max: 7 }
-      }
+    // СТАН ПРИГОДИ - завантажується з бекенду за story_id з URL.
+    // Порожній шаблон використовується лише як fallback, якщо запит не вдався.
+    let adventureData = {
+      title: "Нова історія",
+      characters: [],
+      acts: []
     };
 
-    document.addEventListener('DOMContentLoaded', () => {
-      renderParties();
+    function getStoryIdFromUrl() {
+      return new URLSearchParams(window.location.search).get('story_id');
+    }
+
+    // ІНІЦІАЛІЗАЦІЯ
+    document.addEventListener('DOMContentLoaded', async () => {
+      const storyId = getStoryIdFromUrl();
+      if (!storyId) {
+        alert("Не вказано ID історії (відсутній story_id у посиланні).");
+        window.location.href = '/story_navigation';
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/stories/${storyId}`);
+        if (!response.ok) {
+          alert("Історію не знайдено на сервері.");
+          window.location.href = '/story_navigation';
+          return;
+        }
+        const data = await response.json();
+        adventureData = {
+          title: data.title || "Нова історія",
+          characters: data.characters || [],
+          acts: data.acts || []
+        };
+      } catch (err) {
+        console.error(err);
+        alert("Помилка з'єднання з сервером під час завантаження історії.");
+      }
+
+      // Міграція старих Актів (description/imageUrl) у нову систему блоків,
+      // якщо історія була створена/збережена до цього оновлення.
+      (adventureData.acts || []).forEach(act => {
+        if (!act.blocks) {
+          act.blocks = [];
+          if (act.description) {
+            act.blocks.push({ id: 'b_' + Date.now() + Math.random().toString(36).slice(2, 6), type: 'description', content: act.description });
+          }
+          if (act.imageUrl) {
+            act.blocks.push({ id: 'b_' + Date.now() + Math.random().toString(36).slice(2, 6), type: 'visual', imageUrl: act.imageUrl });
+          }
+          delete act.description;
+          delete act.imageUrl;
+        }
+      });
+
+      document.getElementById('adventureTitle').value = adventureData.title;
+      document.getElementById('adventureTitle').addEventListener('input', (e) => {
+        adventureData.title = e.target.value;
+      });
+      renderCharacters();
+      renderActs();
     });
 
-    // Render Parties and Characters
-    function renderParties() {
-      const container = document.getElementById('partyContainer');
+    // =========================================================================
+    // ПЕРСОНАЖІ ГРАВЦІВ - тепер обираються з реального списку гравців/персонажів
+    // DM (а не вводяться вручну). "Ціль" зберігається окремо для кожного слота,
+    // тобто прив'язана саме до цієї пари (character_id, story).
+    // =========================================================================
+    function renderCharacters() {
+      const container = document.getElementById('charactersContainer');
       container.innerHTML = '';
 
-      campaignData.parties.forEach(party => {
-        const partyBox = document.createElement('div');
-        partyBox.className = 'bg-gray-900 rounded-lg p-3 border border-gray-800 space-y-2';
-        
-        let playersHtml = '';
-        party.players.forEach(p => {
-          playersHtml += `
-            <div class="bg-gray-800/80 p-2 rounded border border-gray-700/60 flex justify-between items-center text-xs">
-              <div>
-                <span class="font-bold text-amber-300">${p.charName}</span> 
-                <span class="text-[10px] text-gray-400">(${p.className})</span>
-                <div class="text-[10px] text-emerald-400">👤 Гравець: ${p.userAssigned || 'Не призначено'}</div>
-              </div>
-              <button onclick="editPlayerAssignment('${party.id}', '${p.id}')" class="text-gray-400 hover:text-amber-400 text-xs px-1">
-                <i class="fa-solid fa-pen"></i>
-              </button>
-            </div>
-          `;
-        });
+      adventureData.characters.forEach((char, index) => {
+        const card = document.createElement('div');
+        card.className = 'char-card';
 
-        partyBox.innerHTML = `
-          <div class="flex justify-between items-center border-b border-gray-800 pb-1.5">
-            <span class="text-xs font-bold text-amber-400"><i class="fa-solid fa-shield-halved"></i> ${party.name}</span>
-            <button onclick="addPlayerToParty('${party.id}')" class="text-[10px] bg-gray-800 hover:bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded border border-gray-700">
-              + Персонаж
+        if (!char.character_id) {
+          card.innerHTML = `
+            <div class="char-card-header">
+              <span class="char-slot-empty">Слот персонажа не заповнено</span>
+              <button onclick="removeCharacter(${index})" class="btn btn-danger" style="padding: 2px 6px;"><i class="fa-solid fa-trash"></i></button>
+            </div>
+            <button onclick="pickCharacterForSlot(${index})" class="btn btn-outline" style="align-self:flex-start;">
+              <i class="fa-solid fa-link"></i> Обрати гравця та персонажа
             </button>
+          `;
+          container.appendChild(card);
+          return;
+        }
+
+        card.innerHTML = `
+          <div class="char-card-header">
+            <div>
+              <div style="font-weight:700; color: var(--accent-gold);">${char.name}</div>
+              <div style="font-size:0.75rem; color: var(--text-muted);">${char.role || 'Без ролі'} · Гравець: ${char.player || '—'}</div>
+            </div>
+            <button onclick="removeCharacter(${index})" class="btn btn-danger" style="padding: 2px 6px;"><i class="fa-solid fa-trash"></i></button>
           </div>
-          <div class="space-y-1.5 pt-1">
-            ${playersHtml || '<p class="text-[10px] text-gray-500 italic">Немає персонажів у цій групі</p>'}
+          <button onclick="pickCharacterForSlot(${index})" class="btn btn-dark" style="font-size:0.75rem; align-self:flex-start;">
+            <i class="fa-solid fa-rotate"></i> Змінити персонажа
+          </button>
+          <input type="text" class="char-title-input" value="${char.title || ''}" placeholder="Титул для цієї пригоди (необов'язково)" onchange="adventureData.characters[${index}].title = this.value">
+          <div class="char-stats-grid">
+            <div class="stat-box">
+              <span>HP:</span>
+              <div>
+                <input type="number" value="${char.hp}" onchange="adventureData.characters[${index}].hp = +this.value"> /
+                <input type="number" value="${char.maxHp}" onchange="adventureData.characters[${index}].maxHp = +this.value">
+              </div>
+            </div>
+            <div class="stat-box">
+              <span>AC:</span>
+              <input type="number" value="${char.ac}" onchange="adventureData.characters[${index}].ac = +this.value">
+            </div>
+          </div>
+          <textarea rows="2" placeholder="Особиста ціль у цій пригоді..." onchange="adventureData.characters[${index}].goal = this.value">${char.goal || ''}</textarea>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function addCharacter() {
+      adventureData.characters.push({
+        id: 'sc_' + Date.now(),
+        character_id: null,
+        player_id: null,
+        title: '',
+        name: '',
+        role: '',
+        hp: 10, maxHp: 10, ac: 10,
+        player: '',
+        goal: ''
+      });
+      renderCharacters();
+    }
+
+    function removeCharacter(index) {
+      adventureData.characters.splice(index, 1);
+      renderCharacters();
+    }
+
+    function pickCharacterForSlot(index) {
+      openCharacterPickerModal(async (selection) => {
+        let fullChar = null;
+        try {
+          const res = await fetch(`/api/characters/${selection.characterId}`);
+          if (res.ok) fullChar = await res.json();
+        } catch (e) {
+          console.error(e);
+        }
+
+        adventureData.characters[index].character_id = selection.characterId;
+        adventureData.characters[index].player_id = selection.playerId;
+        adventureData.characters[index].player = selection.playerName;
+        adventureData.characters[index].name = selection.characterName;
+        adventureData.characters[index].role = selection.characterRole || '';
+        if (fullChar) {
+          adventureData.characters[index].hp = fullChar.current_hp;
+          adventureData.characters[index].maxHp = fullChar.max_hp;
+          adventureData.characters[index].ac = fullChar.ac;
+        }
+        renderCharacters();
+      });
+    }
+
+    // --- МОДАЛЬНЕ ВІКНО: ГРАВЕЦЬ -> ПЕРСОНАЖ ---
+    async function fetchDmPlayers() {
+      const dmId = localStorage.getItem('dm_id');
+      if (!dmId) return [];
+      try {
+        const res = await fetch(`/api/dm/${dmId}/players`);
+        if (!res.ok) return [];
+        return await res.json();
+      } catch (e) {
+        console.error(e);
+        return [];
+      }
+    }
+
+    function openCharacterPickerModal(onSelect) {
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.innerHTML = `
+        <div class="modal-box">
+          <div class="modal-header">
+            <span id="modalTitle">Оберіть гравця</span>
+            <button class="btn-modal-close" id="modalCloseBtn">&times;</button>
+          </div>
+          <div class="modal-body" id="modalBody">
+            <div class="modal-loading">Завантаження...</div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      overlay.querySelector('#modalCloseBtn').addEventListener('click', () => overlay.remove());
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+      fetchDmPlayers().then(players => renderPlayerStep(overlay, players, onSelect));
+    }
+
+    function renderPlayerStep(overlay, players, onSelect) {
+      overlay.querySelector('#modalTitle').textContent = 'Оберіть гравця';
+      const body = overlay.querySelector('#modalBody');
+
+      if (players.length === 0) {
+        body.innerHTML = `<p class="modal-empty">У вас ще немає доданих гравців. Додайте гравця у розділі "Гравці".</p>`;
+        return;
+      }
+
+      body.innerHTML = players.map(p => `
+        <div class="modal-list-item" data-player-id="${p.id}">
+          <span>${p.name}</span>
+          <span class="modal-item-meta">${p.characters.length} персонаж(ів)</span>
+        </div>
+      `).join('');
+
+      body.querySelectorAll('.modal-list-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const playerId = parseInt(item.dataset.playerId);
+          const player = players.find(p => p.id === playerId);
+          renderCharacterStep(overlay, player, players, onSelect);
+        });
+      });
+    }
+
+    function renderCharacterStep(overlay, player, allPlayers, onSelect) {
+      overlay.querySelector('#modalTitle').textContent = `Персонажі: ${player.name}`;
+      const body = overlay.querySelector('#modalBody');
+
+      const backBtnHtml = `<button class="btn btn-dark" id="backToPlayersBtn" style="margin-bottom:6px; align-self:flex-start;">← Назад до гравців</button>`;
+
+      if (player.characters.length === 0) {
+        body.innerHTML = backBtnHtml + `<p class="modal-empty">У гравця "${player.name}" ще немає персонажів.</p>`;
+      } else {
+        body.innerHTML = backBtnHtml + player.characters.map(c => `
+          <div class="modal-list-item" data-char-id="${c.id}">
+            <span>${c.name}</span>
+            <span class="modal-item-meta">${c.role || ''}</span>
+          </div>
+        `).join('');
+      }
+
+      body.querySelector('#backToPlayersBtn').addEventListener('click', () => {
+        renderPlayerStep(overlay, allPlayers, onSelect);
+      });
+
+      body.querySelectorAll('.modal-list-item[data-char-id]').forEach(item => {
+        item.addEventListener('click', () => {
+          const charId = parseInt(item.dataset.charId);
+          const char = player.characters.find(c => c.id === charId);
+          overlay.remove();
+          onSelect({
+            playerId: player.id,
+            playerName: player.name,
+            characterId: char.id,
+            characterName: char.name,
+            characterRole: char.role
+          });
+        });
+      });
+    }
+
+    // =========================================================================
+    // АКТИ ТА СЦЕНИ
+    // Акти тепер мають ту саму динамічну систему блоків, що й Сцени
+    // (замість фіксованих полів опис+обкладинка).
+    // =========================================================================
+    function renderActs() {
+      const container = document.getElementById('actsContainer');
+      container.innerHTML = '';
+
+      adventureData.acts.forEach((act, actIdx) => {
+        const actCard = document.createElement('div');
+        actCard.className = 'act-card';
+
+        actCard.innerHTML = `
+          <div class="act-header">
+            <input type="text" class="act-title-input" value="${act.title}" onchange="adventureData.acts[${actIdx}].title = this.value">
+            <button onclick="removeAct(${actIdx})" class="btn btn-danger" style="font-size: 0.75rem;"><i class="fa-solid fa-trash"></i> Видалити Акт</button>
+          </div>
+
+          <div class="scene-blocks-container act-blocks-container" data-act-idx="${actIdx}" data-scene-idx=""></div>
+
+          <div class="add-block-actions">
+            <button onclick="addBlock(${actIdx}, null, 'description')" class="btn btn-dark" style="font-size: 0.75rem;">+ Опис</button>
+            <button onclick="addBlock(${actIdx}, null, 'visual')" class="btn btn-dark" style="font-size: 0.75rem;">+ Візуальний Опис</button>
+            <button onclick="addBlock(${actIdx}, null, 'enemies')" class="btn btn-dark" style="font-size: 0.75rem;">+ Вороги</button>
+            <button onclick="addBlock(${actIdx}, null, 'items')" class="btn btn-dark" style="font-size: 0.75rem;">+ Предмети</button>
+          </div>
+
+          <div class="scenes-container" data-act-index="${actIdx}"></div>
+
+          <button onclick="addScene(${actIdx})" class="btn btn-dark" style="margin-top: 6px;">
+            <i class="fa-solid fa-plus"></i> Додати Сцену
+          </button>
+        `;
+
+        container.appendChild(actCard);
+
+        const actBlocksContainer = actCard.querySelector('.act-blocks-container');
+        renderBlocks(actIdx, null, actBlocksContainer);
+
+        const scenesContainer = actCard.querySelector('.scenes-container');
+        renderScenes(actIdx, scenesContainer);
+      });
+    }
+
+    function addAct() {
+      adventureData.acts.push({
+        id: 'act_' + Date.now(),
+        title: `Акт ${adventureData.acts.length + 1}`,
+        blocks: [
+          { id: 'b_' + Date.now(), type: 'description', content: '' }
+        ],
+        scenes: []
+      });
+      renderActs();
+    }
+
+    function removeAct(actIdx) {
+      if (confirm('Видалити цей Акт разом зі всіма сценами?')) {
+        adventureData.acts.splice(actIdx, 1);
+        renderActs();
+      }
+    }
+
+    // --- РЕНДЕР СЦЕН І DRAG & DROP СЦЕН ---
+    function renderScenes(actIdx, container) {
+      container.innerHTML = '';
+
+      adventureData.acts[actIdx].scenes.forEach((scene, sceneIdx) => {
+        const sceneCard = document.createElement('div');
+        sceneCard.className = 'scene-card';
+        sceneCard.draggable = true;
+        sceneCard.dataset.actIdx = actIdx;
+        sceneCard.dataset.sceneIdx = sceneIdx;
+
+        sceneCard.innerHTML = `
+          <div class="scene-header">
+            <span><i class="fa-solid fa-grip-vertical drag-handle"></i> ${scene.title}</span>
+            <button onclick="removeScene(${actIdx}, ${sceneIdx})" class="btn btn-danger" style="padding: 2px 6px; font-size: 0.7rem;"><i class="fa-solid fa-trash"></i></button>
+          </div>
+          <input type="text" value="${scene.title}" placeholder="Назва Сцени" onchange="adventureData.acts[${actIdx}].scenes[${sceneIdx}].title = this.value">
+
+          <div class="scene-blocks-container" data-act-idx="${actIdx}" data-scene-idx="${sceneIdx}"></div>
+
+          <div class="add-block-actions">
+            <button onclick="addBlock(${actIdx}, ${sceneIdx}, 'description')" class="btn btn-dark" style="font-size: 0.75rem;">+ Опис</button>
+            <button onclick="addBlock(${actIdx}, ${sceneIdx}, 'visual')" class="btn btn-dark" style="font-size: 0.75rem;">+ Візуальний Опис</button>
+            <button onclick="addBlock(${actIdx}, ${sceneIdx}, 'enemies')" class="btn btn-dark" style="font-size: 0.75rem;">+ Вороги</button>
+            <button onclick="addBlock(${actIdx}, ${sceneIdx}, 'items')" class="btn btn-dark" style="font-size: 0.75rem;">+ Предмети</button>
           </div>
         `;
 
-        container.appendChild(partyBox);
+        container.appendChild(sceneCard);
+
+        setupSceneDragging(sceneCard);
+
+        const blocksContainer = sceneCard.querySelector('.scene-blocks-container');
+        renderBlocks(actIdx, sceneIdx, blocksContainer);
+      });
+
+      setupSceneContainerDrop(container);
+    }
+
+    function addScene(actIdx) {
+      const newSceneNum = adventureData.acts[actIdx].scenes.length + 1;
+      adventureData.acts[actIdx].scenes.push({
+        id: 'sc_' + Date.now(),
+        title: `Сцена ${newSceneNum}`,
+        blocks: [
+          { id: 'b_' + Date.now(), type: 'description', content: '' }
+        ]
+      });
+      renderActs();
+    }
+
+    function removeScene(actIdx, sceneIdx) {
+      adventureData.acts[actIdx].scenes.splice(sceneIdx, 1);
+      renderActs();
+    }
+
+    // =========================================================================
+    // УНІФІКОВАНА СИСТЕМА БЛОКІВ
+    // Працює як для блоків Акту (sceneIdx === null), так і для блоків Сцени
+    // (sceneIdx - число). Зображення (visual/enemies) та підпис (visual) -
+    // опціональні: додаються/видаляються окремими кнопками, а не завжди
+    // присутні за замовчуванням.
+    // =========================================================================
+    function getBlocksArray(actIdx, sceneIdx) {
+      return (sceneIdx === null || sceneIdx === undefined)
+        ? adventureData.acts[actIdx].blocks
+        : adventureData.acts[actIdx].scenes[sceneIdx].blocks;
+    }
+
+    function blockRefExpr(actIdx, sceneIdx, blockIdx) {
+      return (sceneIdx === null || sceneIdx === undefined)
+        ? `adventureData.acts[${actIdx}].blocks[${blockIdx}]`
+        : `adventureData.acts[${actIdx}].scenes[${sceneIdx}].blocks[${blockIdx}]`;
+    }
+
+    function renderBlocks(actIdx, sceneIdx, container) {
+      const blocks = getBlocksArray(actIdx, sceneIdx);
+      const sceneIdxAttr = (sceneIdx === null || sceneIdx === undefined) ? '' : sceneIdx;
+      const sceneIdxArg = (sceneIdx === null || sceneIdx === undefined) ? 'null' : sceneIdx;
+      const idScope = (sceneIdx === null || sceneIdx === undefined) ? 'act' : sceneIdx;
+
+      container.innerHTML = '';
+
+      blocks.forEach((block, blockIdx) => {
+        const blockEl = document.createElement('div');
+        blockEl.className = 'scene-block';
+        blockEl.draggable = true;
+        blockEl.dataset.actIdx = actIdx;
+        blockEl.dataset.sceneIdx = sceneIdxAttr;
+        blockEl.dataset.blockIdx = blockIdx;
+
+        const ref = blockRefExpr(actIdx, sceneIdx, blockIdx);
+        let contentHtml = '';
+        let hasImage = false;
+
+        if (block.type === 'description') {
+          contentHtml = `
+            <div class="scene-block-header">
+              <span><i class="fa-solid fa-grip-vertical drag-handle"></i> 📝 Текстовий Опис</span>
+              <button onclick="removeBlock(${actIdx}, ${sceneIdxArg}, ${blockIdx})" class="btn btn-danger" style="padding: 1px 5px; font-size: 0.7rem;"><i class="fa-solid fa-trash"></i></button>
+            </div>
+            <textarea rows="2" placeholder="Введіть текстовий опис..." onchange="${ref}.content = this.value">${block.content || ''}</textarea>
+          `;
+        } else if (block.type === 'visual') {
+          hasImage = block.imageUrl !== undefined && block.imageUrl !== null;
+          const hasCaption = block.caption !== undefined && block.caption !== null;
+          const zoneId = `vis-img-zone-${actIdx}-${idScope}-${blockIdx}`;
+          const fileId = `vis-file-${actIdx}-${idScope}-${blockIdx}`;
+
+          contentHtml = `
+            <div class="scene-block-header">
+              <span><i class="fa-solid fa-grip-vertical drag-handle"></i> 🖼️ Візуальний Опис</span>
+              <button onclick="removeBlock(${actIdx}, ${sceneIdxArg}, ${blockIdx})" class="btn btn-danger" style="padding: 1px 5px; font-size: 0.7rem;"><i class="fa-solid fa-trash"></i></button>
+            </div>
+            ${hasImage ? `
+              <div class="image-dropzone" id="${zoneId}" onclick="triggerFileInput('${fileId}')">
+                <span class="dropzone-text"><i class="fa-solid fa-image"></i> Натисніть, вставте URL або перетягніть файл зображення</span>
+                <input type="file" id="${fileId}" style="display:none" accept="image/*" onchange="handleFileSelect(event, (url) => { ${ref}.imageUrl = url; renderActs(); })">
+                <input type="text" placeholder="URL зображення..." value="${block.imageUrl || ''}" style="margin-top: 4px;" onclick="event.stopPropagation()" onchange="${ref}.imageUrl = this.value; renderActs();">
+                ${block.imageUrl ? `<img src="${block.imageUrl}" alt="Visual Description Image">` : ''}
+              </div>
+              <button onclick="delete ${ref}.imageUrl; renderActs();" class="btn btn-danger" style="font-size:0.7rem; align-self:flex-start;"><i class="fa-solid fa-trash"></i> Видалити зображення</button>
+            ` : `
+              <button onclick="${ref}.imageUrl=''; renderActs();" class="btn btn-outline" style="font-size:0.75rem; align-self:flex-start;">+ Додати зображення</button>
+            `}
+            ${hasCaption ? `
+              <div class="item-row">
+                <input type="text" placeholder="Підпис / Коментар до артів..." value="${block.caption || ''}" onchange="${ref}.caption = this.value">
+                <button onclick="delete ${ref}.caption; renderActs();" class="btn btn-danger" style="padding: 2px 6px;"><i class="fa-solid fa-trash"></i></button>
+              </div>
+            ` : `
+              <button onclick="${ref}.caption=''; renderActs();" class="btn btn-outline" style="font-size:0.75rem; align-self:flex-start;">+ Додати підпис</button>
+            `}
+          `;
+        } else if (block.type === 'enemies') {
+          hasImage = block.imageUrl !== undefined && block.imageUrl !== null;
+          const zoneId = `enemy-img-zone-${actIdx}-${idScope}-${blockIdx}`;
+          const fileId = `enemy-file-${actIdx}-${idScope}-${blockIdx}`;
+
+          let enemiesRows = (block.list || []).map((e, enemyIdx) => `
+            <div class="enemy-row">
+              <input type="text" value="${e.name}" placeholder="Ім'я ворога" onchange="${ref}.list[${enemyIdx}].name = this.value">
+              <div class="enemy-input-group">
+                <span>❤️</span>
+                <input type="number" value="${e.hp}" placeholder="HP" onchange="${ref}.list[${enemyIdx}].hp = +this.value">
+              </div>
+              <div class="enemy-input-group">
+                <span>🛡️</span>
+                <input type="number" value="${e.ac}" placeholder="AC" onchange="${ref}.list[${enemyIdx}].ac = +this.value">
+              </div>
+              <div class="enemy-input-group">
+                <span>⚔️</span>
+                <input type="text" value="${e.attack}" placeholder="Атака" onchange="${ref}.list[${enemyIdx}].attack = this.value">
+              </div>
+              <button onclick="removeEnemy(${actIdx}, ${sceneIdxArg}, ${blockIdx}, ${enemyIdx})" class="btn btn-danger" style="padding: 2px 4px;"><i class="fa-solid fa-trash"></i></button>
+            </div>
+          `).join('');
+
+          contentHtml = `
+            <div class="scene-block-header">
+              <span><i class="fa-solid fa-grip-vertical drag-handle"></i> ⚔️ Група Ворогів</span>
+              <button onclick="removeBlock(${actIdx}, ${sceneIdxArg}, ${blockIdx})" class="btn btn-danger" style="padding: 1px 5px; font-size: 0.7rem;"><i class="fa-solid fa-trash"></i></button>
+            </div>
+
+            ${hasImage ? `
+              <div class="image-dropzone" id="${zoneId}" onclick="triggerFileInput('${fileId}')">
+                <span class="dropzone-text"><i class="fa-solid fa-image"></i> Фото/аватар для цієї групи ворогів</span>
+                <input type="file" id="${fileId}" style="display:none" accept="image/*" onchange="handleFileSelect(event, (url) => { ${ref}.imageUrl = url; renderActs(); })">
+                <input type="text" placeholder="URL зображення ворогів..." value="${block.imageUrl || ''}" style="margin-top: 4px;" onclick="event.stopPropagation()" onchange="${ref}.imageUrl = this.value; renderActs();">
+                ${block.imageUrl ? `<img src="${block.imageUrl}" alt="Enemy Group Image">` : ''}
+              </div>
+              <button onclick="delete ${ref}.imageUrl; renderActs();" class="btn btn-danger" style="font-size:0.7rem; align-self:flex-start;"><i class="fa-solid fa-trash"></i> Видалити зображення</button>
+            ` : `
+              <button onclick="${ref}.imageUrl=''; renderActs();" class="btn btn-outline" style="font-size:0.75rem; align-self:flex-start;">+ Додати зображення</button>
+            `}
+
+            <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">
+              ${enemiesRows}
+            </div>
+            <button onclick="addEnemyRow(${actIdx}, ${sceneIdxArg}, ${blockIdx})" class="btn btn-outline" style="font-size:0.75rem; padding: 2px 6px; align-self: flex-start; margin-top:4px;">+ Додати ворога у групу</button>
+          `;
+        } else if (block.type === 'items') {
+          let itemsRows = (block.list || []).map((item, itemIdx) => `
+            <div class="item-row">
+              <input type="text" value="${item}" placeholder="Назва предмета" onchange="${ref}.list[${itemIdx}] = this.value">
+              <button onclick="removeItemRow(${actIdx}, ${sceneIdxArg}, ${blockIdx}, ${itemIdx})" class="btn btn-danger" style="padding: 2px 6px;"><i class="fa-solid fa-trash"></i></button>
+            </div>
+          `).join('');
+
+          contentHtml = `
+            <div class="scene-block-header">
+              <span><i class="fa-solid fa-grip-vertical drag-handle"></i> 🎁 Предмети / Лут</span>
+              <button onclick="removeBlock(${actIdx}, ${sceneIdxArg}, ${blockIdx})" class="btn btn-danger" style="padding: 1px 5px; font-size: 0.7rem;"><i class="fa-solid fa-trash"></i></button>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              ${itemsRows}
+            </div>
+            <button onclick="addItemRow(${actIdx}, ${sceneIdxArg}, ${blockIdx})" class="btn btn-outline" style="font-size:0.75rem; padding: 2px 6px; align-self: flex-start; margin-top:4px;">+ Додати предмет</button>
+          `;
+        }
+
+        blockEl.innerHTML = contentHtml;
+        container.appendChild(blockEl);
+
+        if ((block.type === 'visual' || block.type === 'enemies') && hasImage) {
+          const zoneId = `${block.type === 'visual' ? 'vis' : 'enemy'}-img-zone-${actIdx}-${idScope}-${blockIdx}`;
+          setupDropzone(zoneId, (url) => {
+            getBlocksArray(actIdx, sceneIdx)[blockIdx].imageUrl = url;
+            renderActs();
+          });
+        }
+
+        setupBlockDragging(blockEl);
+      });
+
+      setupBlockContainerDrop(container);
+    }
+
+    // УПРАВЛІННЯ БЛОКАМИ (спільне для Актів і Сцен)
+    function addBlock(actIdx, sceneIdx, type) {
+      let newBlock = { id: 'b_' + Date.now() + Math.random().toString(36).slice(2, 6), type: type };
+      if (type === 'description') newBlock.content = '';
+      if (type === 'enemies') newBlock.list = [{ name: 'Монстр', hp: 10, ac: 10, attack: '+2 (1d6)' }];
+      if (type === 'items') newBlock.list = ['Новий предмет'];
+      // Для 'visual' свідомо НЕ додаємо imageUrl/caption одразу -
+      // вони опціональні і додаються окремими кнопками "+ Додати..."
+
+      getBlocksArray(actIdx, sceneIdx).push(newBlock);
+      renderActs();
+    }
+
+    function removeBlock(actIdx, sceneIdx, blockIdx) {
+      getBlocksArray(actIdx, sceneIdx).splice(blockIdx, 1);
+      renderActs();
+    }
+
+    function addEnemyRow(actIdx, sceneIdx, blockIdx) {
+      getBlocksArray(actIdx, sceneIdx)[blockIdx].list.push({ name: 'Монстр', hp: 10, ac: 10, attack: '+2 (1d6)' });
+      renderActs();
+    }
+
+    function removeEnemy(actIdx, sceneIdx, blockIdx, enemyIdx) {
+      getBlocksArray(actIdx, sceneIdx)[blockIdx].list.splice(enemyIdx, 1);
+      renderActs();
+    }
+
+    function addItemRow(actIdx, sceneIdx, blockIdx) {
+      getBlocksArray(actIdx, sceneIdx)[blockIdx].list.push('Новий предмет');
+      renderActs();
+    }
+
+    function removeItemRow(actIdx, sceneIdx, blockIdx, itemIdx) {
+      getBlocksArray(actIdx, sceneIdx)[blockIdx].list.splice(itemIdx, 1);
+      renderActs();
+    }
+
+    // --- ОБРОБКА ЗОБРАЖЕНЬ ---
+    function triggerFileInput(id) {
+      document.getElementById(id).click();
+    }
+
+    function handleFileSelect(event, callback) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => callback(e.target.result);
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function setupDropzone(elementId, callback) {
+      setTimeout(() => {
+        const zone = document.getElementById(elementId);
+        if (!zone) return;
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+          zone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }, false);
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+          zone.addEventListener(eventName, () => zone.classList.add('dragover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+          zone.addEventListener(eventName, () => zone.classList.remove('dragover'), false);
+        });
+
+        zone.addEventListener('drop', (e) => {
+          const dt = e.dataTransfer;
+          const files = dt.files;
+          if (files.length > 0) {
+            const reader = new FileReader();
+            reader.onload = (ev) => callback(ev.target.result);
+            reader.readAsDataURL(files[0]);
+          }
+        }, false);
+      }, 50);
+    }
+
+    // --- DRAG AND DROP ДЛЯ СЦЕН ТА БЛОКІВ ---
+    let draggedItem = null;
+    let dragType = null;
+
+    function setupSceneDragging(el) {
+      el.addEventListener('dragstart', (e) => {
+        draggedItem = { actIdx: +el.dataset.actIdx, sceneIdx: +el.dataset.sceneIdx };
+        dragType = 'scene';
+        el.classList.add('dragging');
+        e.stopPropagation();
+      });
+
+      el.addEventListener('dragend', () => {
+        el.classList.remove('dragging');
+        draggedItem = null;
+        dragType = null;
       });
     }
 
-    // Interactive Enemy HP Manager
-    function updateEnemyHP(enemyId, delta) {
-      const enemy = campaignData.enemiesHP[enemyId];
-      if (!enemy) return;
-
-      enemy.current = Math.max(0, Math.min(enemy.max, enemy.current + delta));
-      
-      const hpEl = document.getElementById(`${enemyId}-hp`);
-      hpEl.innerText = `${enemy.current} / ${enemy.max}`;
-
-      if (enemy.current === 0) {
-        hpEl.className = 'text-xs font-bold text-red-500 line-through px-2';
-      } else if (enemy.current < enemy.max / 2) {
-        hpEl.className = 'text-xs font-bold text-amber-400 px-2';
-      } else {
-        hpEl.className = 'text-xs font-bold text-emerald-400 px-2';
-      }
-    }
-
-    // Quick Loot Drop Modal / Action
-    function quickDropLoot(itemName) {
-      // Gather all available characters
-      let options = '';
-      campaignData.parties.forEach(party => {
-        party.players.forEach(p => {
-          options += `${p.charName} (${p.userAssigned})\n`;
-        });
+    function setupSceneContainerDrop(container) {
+      container.addEventListener('dragover', (e) => {
+        if (dragType !== 'scene') return;
+        e.preventDefault();
       });
 
-      const chosen = prompt(`Оберіть кому передати [${itemName}]:\nВведіть ім'я персонажа:\n\nДоступні:\n${options}`);
-      if (chosen) {
-        alert(`Успішно! Предмет "${itemName}" передано гравцю: ${chosen}`);
-      }
+      container.addEventListener('drop', (e) => {
+        if (dragType !== 'scene') return;
+        e.preventDefault();
+        const targetActIdx = +container.dataset.actIndex;
+
+        const sceneCard = adventureData.acts[draggedItem.actIdx].scenes.splice(draggedItem.sceneIdx, 1)[0];
+        adventureData.acts[targetActIdx].scenes.push(sceneCard);
+        renderActs();
+      });
     }
 
-    // Add Player Functionality
-    function addPlayerToParty(partyId) {
-      const charName = prompt("Введіть ім'я персонажа (напр., Гандальф):");
-      if (!charName) return;
-      const userName = prompt("Призначте гравця (напр., Сергій чи @telegram):");
+    function setupBlockDragging(el) {
+      el.addEventListener('dragstart', (e) => {
+        draggedItem = {
+          actIdx: +el.dataset.actIdx,
+          sceneIdx: el.dataset.sceneIdx === '' ? null : +el.dataset.sceneIdx,
+          blockIdx: +el.dataset.blockIdx
+        };
+        dragType = 'block';
+        el.classList.add('dragging');
+        e.stopPropagation();
+      });
 
-      const party = campaignData.parties.find(p => p.id === partyId);
-      if (party) {
-        party.players.push({
-          id: 'p_' + Date.now(),
-          charName: charName,
-          className: 'Новачок 1',
-          userAssigned: userName || 'Вільний слот',
-          hp: 10,
-          maxHp: 10
+      el.addEventListener('dragend', () => {
+        el.classList.remove('dragging');
+        draggedItem = null;
+        dragType = null;
+      });
+    }
+
+    function setupBlockContainerDrop(container) {
+      container.addEventListener('dragover', (e) => {
+        if (dragType !== 'block') return;
+        e.preventDefault();
+      });
+
+      container.addEventListener('drop', (e) => {
+        if (dragType !== 'block') return;
+        e.preventDefault();
+        const targetActIdx = +container.dataset.actIdx;
+        const targetSceneIdx = container.dataset.sceneIdx === '' ? null : +container.dataset.sceneIdx;
+
+        const sourceBlocks = getBlocksArray(draggedItem.actIdx, draggedItem.sceneIdx);
+        const block = sourceBlocks.splice(draggedItem.blockIdx, 1)[0];
+        getBlocksArray(targetActIdx, targetSceneIdx).push(block);
+        renderActs();
+      });
+    }
+
+    async function saveAdventure() {
+      const storyId = getStoryIdFromUrl();
+      if (!storyId) {
+        alert("Не вказано ID історії - неможливо зберегти.");
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/stories/${storyId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: adventureData.title,
+            characters: adventureData.characters,
+            acts: adventureData.acts
+          })
         });
-        renderParties();
+
+        if (response.ok) {
+          alert("Пригоду успішно збережено!");
+        } else {
+          const result = await response.json().catch(() => ({}));
+          alert("Помилка збереження: " + (result.detail || `HTTP ${response.status}`));
+        }
+      } catch (err) {
+        console.error("Помилка під час збереження історії:", err);
+        alert("Критична помилка при збереженні!");
       }
     }
-
-    function openCreatePartyModal() {
-      const name = prompt("Назва нової групи (напр., Група Неділя):");
-      if (name) {
-        campaignData.parties.push({
-          id: 'party_' + Date.now(),
-          name: name,
-          players: []
-        });
-        renderParties();
-      }
-    }
-
-    function saveCampaignState() {
-      alert("Сценарій та стан персонажів збережено!");
-    }
-  </script>
+</script>
 </body>
 </html>

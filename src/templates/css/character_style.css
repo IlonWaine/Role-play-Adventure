@@ -1,4 +1,3 @@
-/* ПАЛІТРА З ВИСОКИМ КОНТРАСТОМ ТА ЧИТАБЕЛЬНІСТЮ */
 :root {
   --bg-color: #0f1115;
   --card-bg: #1a1d24;
@@ -12,6 +11,7 @@
   --hp-bar-fill: #e53e3e;
   --hp-bar-fill-low: #ff2a2a;
   --border-radius: 10px;
+  --chat-width: 380px;
 }
 
 * {
@@ -24,18 +24,34 @@ body {
   background-color: var(--bg-color);
   color: var(--text-main);
   font-family: 'Inter', sans-serif;
-  padding: 16px;
-  display: flex;
-  justify-content: center;
   line-height: 1.5;
+  overflow-x: hidden;
+}
+
+/* МАКЕТ АПЛІКАЦІЇ */
+.app-layout {
+  display: flex;
+  width: 100vw;
+  min-height: 100vh;
+  justify-content: center;
+  transition: all 0.3s ease;
 }
 
 .character-sheet {
   width: 100%;
   max-width: 1100px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  transition: transform 0.3s ease;
+}
+
+/* ПК РЕЖИМ ПРИ ВІДКРИТОМУ ЧАТІ */
+@media (min-width: 901px) {
+  .app-layout.chat-open .character-sheet {
+    margin-right: var(--chat-width);
+  }
 }
 
 /* ШАПКА */
@@ -50,10 +66,34 @@ body {
   gap: 8px;
 }
 
-.editable-header {
+.header-top-row {
   display: flex;
-  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.btn-chat-toggle {
+  background: var(--card-inner-bg);
+  border: 1px solid var(--border-accent);
+  color: var(--accent-gold);
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
   gap: 6px;
+}
+
+.btn-chat-toggle:hover {
+  background: var(--border-color);
+}
+
+.unread-badge {
+  color: #ff4d4d;
+  font-size: 1.5rem;
+  line-height: 0;
 }
 
 .input-name {
@@ -68,6 +108,10 @@ body {
   width: 100%;
   outline: none;
   transition: border-color 0.2s;
+}
+
+.input-name:focus {
+  border-color: var(--accent-gold);
 }
 
 .input-title {
@@ -85,10 +129,6 @@ body {
   background: transparent;
   border-color: transparent;
   cursor: default;
-}
-
-.input-name:focus {
-  border-color: var(--accent-gold);
 }
 
 /* БОЙОВИЙ БЛОК */
@@ -444,4 +484,165 @@ body {
   border-radius: 6px;
   border: 1px solid var(--border-color);
   display: block;
+}
+
+/* --- СТИЛІ БІЧНОГО ЧАТУ --- */
+.chat-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: var(--chat-width);
+  height: 100vh;
+  background: var(--card-bg);
+  border-left: 1px solid var(--border-color);
+  box-shadow: -5px 0 20px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1000;
+}
+
+.app-layout.chat-open .chat-sidebar {
+  transform: translateX(0);
+}
+
+.chat-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--card-inner-bg);
+}
+
+.chat-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1.1rem;
+  color: var(--accent-gold);
+  font-weight: bold;
+}
+
+.btn-close-chat {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.chat-recipient-selector {
+  padding: 10px 16px;
+  background: var(--bg-color);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chat-recipient-selector label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.chat-recipient-selector select {
+  background: var(--card-inner-bg);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 6px;
+  outline: none;
+}
+
+.chat-messages {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.msg-bubble {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  max-width: 85%;
+  word-wrap: break-word;
+}
+
+.msg-general {
+  background: var(--card-inner-bg);
+  border: 1px solid var(--border-color);
+  align-self: flex-start;
+}
+
+.msg-own {
+  background: #1e3a5f;
+  border: 1px solid #2b5288;
+  align-self: flex-end;
+}
+
+.msg-dm {
+  background: #3b1d22;
+  border: 1px solid #72232d;
+  align-self: flex-start;
+  width: 100%;
+  max-width: 100%;
+}
+
+.msg-secret {
+  background: #31213d;
+  border: 1px dashed #7a42a0;
+  align-self: flex-start;
+}
+
+.msg-author {
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: var(--accent-gold);
+  margin-bottom: 2px;
+}
+
+.msg-time {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  float: right;
+  margin-top: 4px;
+  margin-left: 8px;
+}
+
+.chat-input-box {
+  padding: 12px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  gap: 8px;
+  background: var(--card-inner-bg);
+}
+
+.chat-input-box input {
+  flex: 1;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-main);
+  padding: 8px 12px;
+  outline: none;
+}
+
+.btn-send {
+  background: var(--accent-gold);
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* МОБІЛЬНИЙ АДАПТИВ ТА СВАЙП */
+@media (max-width: 900px) {
+  .chat-sidebar {
+    width: 88vw;
+  }
 }
