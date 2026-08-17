@@ -29,6 +29,30 @@
             border-radius: 4px;
             margin-left: 0.5rem;
         }
+        .ended-badge {
+            font-size: 0.75rem;
+            color: var(--text-muted, #888);
+            margin-left: 0.5rem;
+            font-style: italic;
+        }
+        .character-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .btn-delete-session {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            opacity: 0.6;
+        }
+        .btn-delete-session:hover {
+            opacity: 1;
+            background: rgba(239, 68, 68, 0.1);
+        }
     </style>
 </head>
 <body>
@@ -39,7 +63,7 @@
         </header>
 
         <section class="list-section">
-            <h2>Активні сесії (можна продовжити)</h2>
+            <h2>Ваші сесії (активні й завершені)</h2>
             <div id="activeSessionsList" class="accordion-list"></div>
         </section>
 

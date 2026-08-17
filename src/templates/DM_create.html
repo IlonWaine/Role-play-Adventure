@@ -1017,17 +1017,34 @@
     }
 
     // --- ОБРОБКА ЗОБРАЖЕНЬ ---
+    // callback(url) викликається з реальним посиланням на файл у сховищі
+    // (не з base64) - решта коду блоків цього не бачить, інтерфейс той самий.
     function triggerFileInput(id) {
       document.getElementById(id).click();
     }
 
+    async function uploadImageFile(file, callback) {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch('/api/upload-image', { method: 'POST', body: formData });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          alert(err.detail || 'Не вдалося завантажити зображення на сервер.');
+          return;
+        }
+        const result = await res.json();
+        callback(result.url);
+      } catch (err) {
+        console.error(err);
+        alert("Помилка з'єднання при завантаженні зображення.");
+      }
+    }
+
     function handleFileSelect(event, callback) {
       const file = event.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => callback(e.target.result);
-        reader.readAsDataURL(file);
-      }
+      if (file) uploadImageFile(file, callback);
     }
 
     function setupDropzone(elementId, callback) {
@@ -1053,11 +1070,7 @@
         zone.addEventListener('drop', (e) => {
           const dt = e.dataTransfer;
           const files = dt.files;
-          if (files.length > 0) {
-            const reader = new FileReader();
-            reader.onload = (ev) => callback(ev.target.result);
-            reader.readAsDataURL(files[0]);
-          }
+          if (files.length > 0) uploadImageFile(files[0], callback);
         }, false);
       }, 50);
     }

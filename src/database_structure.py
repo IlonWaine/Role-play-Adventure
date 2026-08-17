@@ -108,6 +108,7 @@ class LiveSession(Base):
     state_json = Column(Text, default='{"enemy_hp": {}}')
 
     created_at = Column(DateTime, default=datetime.utcnow)
+    ended_at = Column(DateTime, nullable=True)  # проставляється при /end - потрібно для очищення старих сесій
 
     dm = relationship("DMUser")
     story = relationship("Story")

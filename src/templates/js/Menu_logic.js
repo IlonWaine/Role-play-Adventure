@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const tabRegisterBtn = document.getElementById('tabRegisterBtn');
   const dmWelcomeText = document.getElementById('dmWelcomeText');
   const dmLogoutBtn = document.getElementById('dmLogoutBtn');
+  const dmCleanupBtn = document.getElementById('dmCleanupBtn');
 
   const btnPlayerModeView = document.getElementById('btnPlayerModeView');
   const btnPlayerModeJoin = document.getElementById('btnPlayerModeJoin');
@@ -305,6 +306,45 @@ if (dmLoginForm) dmLoginForm.addEventListener('submit', handleLogin);
         localStorage.removeItem('dm_id');
         if (dmDashboard) dmDashboard.classList.add('hidden');
         if (dmAuthPanel) dmAuthPanel.classList.remove('hidden');
+      });
+    }
+
+    // 5. Очищення старих даних (чат + завершені сесії понад 30 днів) + VACUUM
+    if (dmCleanupBtn) {
+      dmCleanupBtn.addEventListener('click', async () => {
+        const confirmed = confirm(
+          'Видалити чат і завершені ігрові сесії, старіші за 30 днів, та звільнити місце в БД (VACUUM)?\n\n' +
+          'Персонажів, гравців та історії це НЕ торкнеться - тільки старе листування закінчених ігор.'
+        );
+        if (!confirmed) return;
+
+        dmCleanupBtn.disabled = true;
+        dmCleanupBtn.textContent = '🧹 Очищення...';
+
+        try {
+          const cleanupRes = await fetch('/api/maintenance/cleanup-sessions?days=30', { method: 'POST' });
+          const cleanupResult = await cleanupRes.json().catch(() => ({}));
+
+          if (!cleanupRes.ok) {
+            alert(cleanupResult.detail || 'Помилка очищення.');
+            return;
+          }
+
+          const vacuumRes = await fetch('/api/maintenance/vacuum', { method: 'POST' });
+          const vacuumOk = vacuumRes.ok;
+
+          alert(
+            `Видалено сесій: ${cleanupResult.deleted_sessions ?? 0}\n` +
+            `Видалено повідомлень чату: ${cleanupResult.deleted_messages ?? 0}\n` +
+            (vacuumOk ? 'Місце на диску звільнено (VACUUM виконано).' : 'VACUUM не вдався (не критично, дані вже видалені).')
+          );
+        } catch (err) {
+          console.error(err);
+          alert("Помилка з'єднання з сервером.");
+        } finally {
+          dmCleanupBtn.disabled = false;
+          dmCleanupBtn.textContent = '🧹 Очистити старі сесії';
+        }
       });
     }
   }

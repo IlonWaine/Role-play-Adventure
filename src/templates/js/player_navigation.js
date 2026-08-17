@@ -89,11 +89,12 @@ document.addEventListener("DOMContentLoaded", () => {
             header.className = "player-header";
             header.innerHTML = `<span>Гравець: ${player.name} <span class="player-code-badge">ID: ${player.player_code}</span></span> <span>Персонажів: ${player.characters.length} ▼</span>`;
 
-            // Кнопка створення нового персонажа для цього гравця.
-            // Свідомо ЗА МЕЖАМИ charsList — інакше вона ховається разом
-            // зі згорнутим акордеоном і її просто не видно.
+            // Кнопки дій для гравця (новий персонаж / видалити гравця).
+            // Свідомо ЗА МЕЖАМИ charsList — інакше ховаються разом
+            // зі згорнутим акордеоном і їх просто не видно.
             const playerActions = document.createElement("div");
             playerActions.className = "player-actions";
+
             const newCharBtn = document.createElement("button");
             newCharBtn.type = "button";
             newCharBtn.className = "btn-add-char";
@@ -104,6 +105,26 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             playerActions.appendChild(newCharBtn);
 
+            const deletePlayerBtn = document.createElement("button");
+            deletePlayerBtn.type = "button";
+            deletePlayerBtn.className = "btn-add-char btn-delete-inline";
+            deletePlayerBtn.textContent = "🗑️ Видалити гравця";
+            deletePlayerBtn.addEventListener("click", async (e) => {
+                e.stopPropagation();
+                const confirmed = confirm(
+                    `Видалити гравця "${player.name}" разом з УСІМА його персонажами (${player.characters.length})? Це незворотньо.`
+                );
+                if (!confirmed) return;
+
+                const res = await fetch(`/api/players/${player.id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    loadDashboardData();
+                } else {
+                    alert('Помилка видалення гравця.');
+                }
+            });
+            playerActions.appendChild(deletePlayerBtn);
+
             const charsList = document.createElement("div");
             charsList.className = "characters-list";
 
@@ -113,8 +134,26 @@ document.addEventListener("DOMContentLoaded", () => {
                 player.characters.forEach(char => {
                     const charCard = document.createElement("div");
                     charCard.className = "character-card character-card-link";
-                    charCard.innerHTML = `<strong>${char.name}</strong>${char.role ? " — " + char.role : ""}`;
-                    charCard.addEventListener("click", () => openCharacterEditor(char.id, player.id));
+                    charCard.innerHTML = `
+                        <span>${char.name}${char.role ? " — " + char.role : ""}</span>
+                        <button type="button" class="btn-delete-inline" title="Видалити персонажа">🗑️</button>
+                    `;
+                    charCard.addEventListener("click", (e) => {
+                        if (e.target.closest('.btn-delete-inline')) return;
+                        openCharacterEditor(char.id, player.id);
+                    });
+                    charCard.querySelector('.btn-delete-inline').addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        const confirmed = confirm(`Видалити персонажа "${char.name}" назавжди?`);
+                        if (!confirmed) return;
+
+                        const res = await fetch(`/api/characters/${char.id}`, { method: 'DELETE' });
+                        if (res.ok) {
+                            loadDashboardData();
+                        } else {
+                            alert('Помилка видалення персонажа.');
+                        }
+                    });
                     charsList.appendChild(charCard);
                 });
             }

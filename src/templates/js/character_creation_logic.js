@@ -296,14 +296,33 @@ function handleFileSelect(e) {
   if (e.target.files.length > 0) processImageFile(e.target.files[0]);
 }
 
-function processImageFile(file) {
+async function processImageFile(file) {
   if (!file.type.startsWith('image/')) return;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    dmData.portraitData = e.target.result;
-    showPortraitPreview(e.target.result);
-  };
-  reader.readAsDataURL(file);
+
+  // Тимчасовий локальний прев'ю, поки файл вантажиться на сервер -
+  // без цього портрет "мовчить" кілька секунд під час завантаження.
+  const tempReader = new FileReader();
+  tempReader.onload = (e) => showPortraitPreview(e.target.result);
+  tempReader.readAsDataURL(file);
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch('/api/upload-image', { method: 'POST', body: formData });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.detail || 'Не вдалося завантажити зображення на сервер.');
+      return;
+    }
+    const result = await res.json();
+    dmData.portraitData = result.url;
+    showPortraitPreview(result.url);
+    document.getElementById('dm-portrait-url').value = result.url;
+  } catch (err) {
+    console.error(err);
+    alert("Помилка з'єднання при завантаженні зображення.");
+  }
 }
 
 function handleUrlInput() {

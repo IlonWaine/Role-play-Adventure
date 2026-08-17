@@ -4,13 +4,16 @@ import os
 import random
 import secrets
 import string
+import uuid
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect, status
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 import database
@@ -74,6 +77,78 @@ async def session_websocket(websocket: WebSocket, session_id: int):
             await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(session_id, websocket)
+
+
+# =============================================================================
+# Cloudflare R2 (S3-сумісне сховище) - зображення зберігаються тут, а не
+# base64 прямо в БД. Клієнт ліниво ініціалізується лише якщо задані
+# змінні середовища - без них /api/upload-image поверне зрозумілу помилку
+# замість падіння застосунку при старті (зручно для локальної розробки).
+# =============================================================================
+R2_ACCOUNT_ID = os.environ.get("R2_ACCOUNT_ID")
+R2_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID")
+R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY")
+R2_BUCKET_NAME = os.environ.get("R2_BUCKET_NAME")
+R2_PUBLIC_URL = os.environ.get("R2_PUBLIC_URL")  # напр. https://pub-xxxx.r2.dev або власний домен
+
+_r2_client = None
+
+
+def get_r2_client():
+    global _r2_client
+    if _r2_client is not None:
+        return _r2_client
+
+    if not all([R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_PUBLIC_URL]):
+        raise HTTPException(
+            status_code=503,
+            detail="Завантаження зображень не налаштоване на сервері (відсутні R2_* змінні середовища).",
+        )
+
+    import boto3
+
+    _r2_client = boto3.client(
+        "s3",
+        endpoint_url=f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+        aws_access_key_id=R2_ACCESS_KEY_ID,
+        aws_secret_access_key=R2_SECRET_ACCESS_KEY,
+        region_name="auto",
+    )
+    return _r2_client
+
+
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+MAX_IMAGE_SIZE_BYTES = 8 * 1024 * 1024  # 8 МБ
+
+
+@app.post("/api/upload-image")
+async def upload_image(file: UploadFile = File(...)):
+    """Приймає файл зображення, кладе його в R2, повертає публічний URL.
+    Фронтенд далі використовує цей URL так само, як і будь-яке зовнішнє
+    посилання (imageUrl/portrait_data лишаються звичайним текстовим полем)."""
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail="Дозволені лише зображення (jpeg/png/webp/gif).")
+
+    contents = await file.read()
+    if len(contents) > MAX_IMAGE_SIZE_BYTES:
+        raise HTTPException(status_code=400, detail="Файл завеликий (максимум 8 МБ).")
+
+    client = get_r2_client()
+
+    ext = os.path.splitext(file.filename or "")[1] or ".jpg"
+    key = f"uploads/{uuid.uuid4().hex}{ext}"
+
+    try:
+        client.put_object(
+            Bucket=R2_BUCKET_NAME,
+            Key=key,
+            Body=contents,
+            ContentType=file.content_type,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Помилка завантаження в сховище: {e}")
+
+    return {"url": f"{R2_PUBLIC_URL.rstrip('/')}/{key}"}
 
 
 # =============================================================================
@@ -566,21 +641,42 @@ def start_session(data: StartSessionSchema, db: Session = Depends(database.get_d
 
 
 @app.get("/api/dm/{dm_id}/sessions")
-def get_dm_sessions(dm_id: int, db: Session = Depends(database.get_db)):
-    """Активні сесії DM (щоб можна було повернутись до вже запущеної гри)."""
-    sessions = db.query(database_structure.LiveSession).filter(
-        database_structure.LiveSession.dm_id == dm_id,
-        database_structure.LiveSession.is_active == True,  # noqa: E712
-    ).all()
+def get_dm_sessions(dm_id: int, include_ended: bool = False, db: Session = Depends(database.get_db)):
+    """Сесії DM. За замовчуванням лише активні (щоб продовжити гру);
+    include_ended=true також повертає завершені (для ручного видалення)."""
+    query = db.query(database_structure.LiveSession).filter(
+        database_structure.LiveSession.dm_id == dm_id
+    )
+    if not include_ended:
+        query = query.filter(database_structure.LiveSession.is_active == True)  # noqa: E712
+
+    sessions = query.order_by(database_structure.LiveSession.created_at.desc()).all()
     return [
         {
             "id": s.id,
             "room_code": s.room_code,
             "story_id": s.story_id,
             "story_title": s.story.title if s.story else "",
+            "is_active": s.is_active,
         }
         for s in sessions
     ]
+
+
+@app.delete("/api/sessions/{session_id}")
+def delete_session(session_id: int, db: Session = Depends(database.get_db)):
+    """Повне ручне видалення сесії разом з її чатом (не плутати з /end,
+    яке лише позначає сесію завершеною й лишає історію)."""
+    session = db.query(database_structure.LiveSession).get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Сесію не знайдено")
+
+    db.query(database_structure.SessionMessage).filter(
+        database_structure.SessionMessage.session_id == session_id
+    ).delete()
+    db.delete(session)
+    db.commit()
+    return {"message": "Сесію видалено"}
 
 
 @app.get("/api/sessions/by-room/{room_code}")
@@ -639,8 +735,69 @@ def end_session(session_id: int, db: Session = Depends(database.get_db)):
     if not session:
         raise HTTPException(status_code=404, detail="Сесію не знайдено")
     session.is_active = False
+    session.ended_at = datetime.utcnow()
     db.commit()
     return {"message": "Сесію завершено"}
+
+
+# =============================================================================
+# Обслуговування / очищення старих даних.
+# Викликається вручну (з адмінського запиту чи кнопки), можна повісити й на
+# cron/scheduled job хостингу - спеціального планувальника не додано, щоб не
+# ускладнювати деплой на безкоштовних тарифах без підтримки cron.
+# =============================================================================
+@app.post("/api/maintenance/cleanup-sessions")
+def cleanup_old_sessions(days: int = 30, db: Session = Depends(database.get_db)):
+    """
+    Видаляє чат (SessionMessage) і самі LiveSession для ігор, завершених
+    понад `days` днів тому. Дані персонажів (HP/інвентар/тощо) НЕ чіпає -
+    вони вже давно й назавжди в таблиці Character, це стосується лише
+    "сміття" живої сесії (чат, стан бою).
+    """
+    cutoff = datetime.utcnow() - timedelta(days=days)
+
+    old_sessions = db.query(database_structure.LiveSession).filter(
+        database_structure.LiveSession.is_active == False,  # noqa: E712
+        database_structure.LiveSession.ended_at != None,  # noqa: E711
+        database_structure.LiveSession.ended_at < cutoff,
+    ).all()
+
+    deleted_sessions = 0
+    deleted_messages = 0
+
+    for session in old_sessions:
+        msgs_deleted = db.query(database_structure.SessionMessage).filter(
+            database_structure.SessionMessage.session_id == session.id
+        ).delete()
+        deleted_messages += msgs_deleted
+        db.delete(session)
+        deleted_sessions += 1
+
+    db.commit()
+
+    return {
+        "deleted_sessions": deleted_sessions,
+        "deleted_messages": deleted_messages,
+        "cutoff_days": days,
+    }
+
+
+@app.post("/api/maintenance/vacuum")
+def run_vacuum(db: Session = Depends(database.get_db)):
+    """
+    VACUUM звільняє місце на диску після масових видалень - SQLite/Postgres
+    самі його НЕ зменшують автоматично одразу після DELETE.
+    Викликати після cleanup-sessions, якщо видалили багато рядків.
+    Постгрес зазвичай сам робить це через autovacuum, тому для нього цей
+    виклик менш критичний, але не шкодить.
+    """
+    try:
+        db.execute(text("VACUUM"))
+        db.commit()
+        return {"message": "VACUUM виконано"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Помилка VACUUM: {e}")
 
 
 @app.post("/api/sessions/{session_id}/trade")
