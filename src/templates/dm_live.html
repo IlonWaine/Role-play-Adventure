@@ -228,6 +228,7 @@
       top: 0; right: 0;
       width: var(--chat-width);
       height: 100vh;
+      height: 100dvh; /* динамічна висота - враховує появу мобільної клавіатури */
       background: var(--bg-card);
       border-left: 1px solid var(--border-color);
       box-shadow: -5px 0 20px rgba(0,0,0,0.5);
@@ -290,6 +291,23 @@
 
     @media (max-width: 900px) {
       .chat-sidebar { width: 90vw; }
+    }
+
+    /* ПЕРЕГЛЯД ЗОБРАЖЕННЯ НА ВЕСЬ ЕКРАН (ЛАЙТБОКС) */
+    .lightbox-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 5000;
+      cursor: zoom-out;
+      padding: 20px;
+    }
+    .lightbox-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 8px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.6);
     }
   </style>
 </head>

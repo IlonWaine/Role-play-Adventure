@@ -17,6 +17,7 @@
 
       <header class="header-card">
         <div class="header-top-row">
+          <button class="btn-chat-toggle" onclick="window.location.href='/'" title="До меню" style="padding: 8px 12px;">←</button>
           <input type="text" class="input-name" value="Козак Крутивус" placeholder="Ім'я персонажа..." id="char-name">
           <button class="btn-chat-toggle" id="chat-toggle-btn" onclick="toggleChat()">
             💬 Чат <span class="unread-badge" id="unread-badge" style="display: none;">•</span>
@@ -131,7 +132,7 @@
           <span class="toggle-icon">▼</span>
         </h2>
         <div class="collapsible-content">
-          <img class="portrait-img" id="portrait-img" src="" alt="Портрет персонажа">
+          <img class="portrait-img" id="portrait-img" src="" alt="Портрет персонажа" onclick="openImageLightbox(this.src)">
         </div>
       </footer>
 

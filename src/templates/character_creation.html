@@ -8,12 +8,31 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/character_creation_style.css">
+  <style>
+    /* Fallback-стиль для перегляду зображення на весь екран (лайтбокс) */
+    .lightbox-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 5000;
+      cursor: zoom-out;
+      padding: 20px;
+    }
+    .lightbox-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 8px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+    }
+  </style>
 </head>
 <body>
 
   <div class="character-sheet dm-mode">
 
     <div class="dm-action-header">
+      <button type="button" onclick="window.history.back()" title="Назад" style="background: transparent; border: 1px solid rgba(255,255,255,0.3); color: inherit; border-radius: 6px; padding: 4px 10px; cursor: pointer; margin-right: 8px;">←</button>
       <span class="dm-title-text">🧙‍♂️ <strong>Панель DM</strong></span>
       <button type="button" class="btn-submit" onclick="saveCharacterData()">💾 Зберегти</button>
     </div>
@@ -126,8 +145,8 @@
     <footer class="card">
       <h2 class="card-title">🖼️ Портрет (1024×1536)</h2>
       <div class="portrait-upload-container">
-        <div class="drop-zone" id="drop-zone">
-          <p class="drop-text">📁 Перетягніть фото або натисніть</p>
+        <div class="drop-zone" id="drop-zone" tabindex="0" onpaste="handleImagePaste(event, (url) => { dmData.portraitData = url; showPortraitPreview(url); document.getElementById('dm-portrait-url').value = url; })">
+          <p class="drop-text">📁 Перетягніть фото, натисніть або вставте (Ctrl+V)</p>
           <span class="drop-hint">(Рекомендовано: 1024×1536)</span>
           <input type="file" id="portrait-file-input" accept="image/*" class="file-input-hidden" onchange="handleFileSelect(event)">
         </div>
@@ -138,7 +157,7 @@
         </div>
 
         <div class="portrait-preview-wrapper" id="preview-wrapper">
-          <img class="portrait-img-preview" id="dm-portrait-preview" src="" alt="Прев'ю відсутнє">
+          <img class="portrait-img-preview" id="dm-portrait-preview" src="" alt="Прев'ю відсутнє" onclick="openImageLightbox(this.src)" style="cursor: zoom-in;">
           <button type="button" class="btn-remove-photo" id="btn-remove-photo" onclick="removePortrait()">🗑️ Видалити фото</button>
         </div>
       </div>

@@ -21,7 +21,7 @@ const emptyCharacterTemplate = {
     { name: "🏃 Спритність", val: 0 },
     { name: "🧐 Ініціатива", val: 0 },
     { name: "🔮 Магія", val: 0 },
-    { name: "🔎 Допитливість", val: 0 },
+    { name: "🔎 Спостережливість", val: 0 },
     { name: "🎭 Харизма", val: 0 }
   ],
   abilities: [],
@@ -294,6 +294,46 @@ function setupDragAndDrop() {
 
 function handleFileSelect(e) {
   if (e.target.files.length > 0) processImageFile(e.target.files[0]);
+}
+
+function handleImagePaste(event, callback) {
+  const items = event.clipboardData && event.clipboardData.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type && item.type.startsWith('image/')) {
+      event.preventDefault();
+      const file = item.getAsFile();
+      if (file) uploadPastedImage(file, callback);
+      return;
+    }
+  }
+}
+
+async function uploadPastedImage(file, callback) {
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    const res = await fetch('/api/upload-image', { method: 'POST', body: formData });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.detail || 'Не вдалося завантажити вставлене зображення.');
+      return;
+    }
+    const result = await res.json();
+    callback(result.url);
+  } catch (err) {
+    console.error(err);
+    alert("Помилка з'єднання при завантаженні зображення.");
+  }
+}
+
+function openImageLightbox(url) {
+  if (!url) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'lightbox-overlay';
+  overlay.innerHTML = `<img src="${url}" class="lightbox-img" alt="Перегляд зображення">`;
+  overlay.addEventListener('click', () => overlay.remove());
+  document.body.appendChild(overlay);
 }
 
 async function processImageFile(file) {

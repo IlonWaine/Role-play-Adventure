@@ -196,7 +196,7 @@ function renderBlocksReadonly(blocks, container) {
     } else if (block.type === 'visual') {
       el.innerHTML = `
         <div class="scene-block-header">🖼️ Візуальний опис</div>
-        ${block.imageUrl ? `<img src="${block.imageUrl}" alt="Візуал"><br>
+        ${block.imageUrl ? `<img src="${block.imageUrl}" alt="Візуал" onclick="openImageLightbox(this.src)" style="cursor:zoom-in;"><br>
           <button class="btn btn-outline share-img-btn" style="font-size:0.7rem; margin-top:6px;"><i class="fa-solid fa-share"></i> Поділитись у чаті</button>` : ''}
         ${block.caption ? `<div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">${block.caption}</div>` : ''}
       `;
@@ -217,7 +217,7 @@ function renderBlocksReadonly(blocks, container) {
 
       el.innerHTML = `
         <div class="scene-block-header">⚔️ Група ворогів</div>
-        ${block.imageUrl ? `<img src="${block.imageUrl}" alt="Вороги"><br>
+        ${block.imageUrl ? `<img src="${block.imageUrl}" alt="Вороги" onclick="openImageLightbox(this.src)" style="cursor:zoom-in;"><br>
           <button class="btn btn-outline share-img-btn" style="font-size:0.7rem; margin-top:6px;"><i class="fa-solid fa-share"></i> Поділитись у чаті</button>` : ''}
         <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">${rows}</div>
       `;
@@ -410,7 +410,7 @@ function renderChatMessages(messages) {
       : '';
 
     const imageHtml = (msg.message_type === 'image' && msg.image_url)
-      ? `<img src="${msg.image_url}" style="max-width:100%; border-radius:6px; margin-top:4px;">`
+      ? `<img src="${msg.image_url}" style="max-width:100%; border-radius:6px; margin-top:4px; cursor:zoom-in;" onclick="openImageLightbox(this.src)">`
       : '';
 
     return `
@@ -480,6 +480,16 @@ async function endSession() {
     console.error(err);
     alert('Помилка завершення сесії.');
   }
+}
+
+// Перегляд зображення на весь екран (сценарій, чат)
+function openImageLightbox(url) {
+  if (!url) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'lightbox-overlay';
+  overlay.innerHTML = `<img src="${url}" class="lightbox-img" alt="Перегляд зображення">`;
+  overlay.addEventListener('click', () => overlay.remove());
+  document.body.appendChild(overlay);
 }
 
 init();

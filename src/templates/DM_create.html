@@ -423,6 +423,23 @@
     .modal-item-meta { font-size: 0.75rem; color: var(--text-muted); }
     .modal-empty { font-size: 0.85rem; color: var(--text-muted); padding: 8px 0; }
     .modal-loading { font-size: 0.85rem; color: var(--text-muted); padding: 8px 0; text-align: center; }
+
+    /* ПЕРЕГЛЯД ЗОБРАЖЕННЯ НА ВЕСЬ ЕКРАН (ЛАЙТБОКС) */
+    .lightbox-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 5000;
+      cursor: zoom-out;
+      padding: 20px;
+    }
+    .lightbox-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 8px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+    }
   </style>
 </head>
 <body>
@@ -922,11 +939,11 @@
               <button onclick="removeBlock(${actIdx}, ${sceneIdxArg}, ${blockIdx})" class="btn btn-danger" style="padding: 1px 5px; font-size: 0.7rem;"><i class="fa-solid fa-trash"></i></button>
             </div>
             ${hasImage ? `
-              <div class="image-dropzone" id="${zoneId}" onclick="triggerFileInput('${fileId}')">
-                <span class="dropzone-text"><i class="fa-solid fa-image"></i> Натисніть, вставте URL або перетягніть файл зображення</span>
+              <div class="image-dropzone" id="${zoneId}" tabindex="0" onclick="triggerFileInput('${fileId}')" onpaste="handleImagePaste(event, (url) => { ${ref}.imageUrl = url; renderActs(); })">
+                <span class="dropzone-text"><i class="fa-solid fa-image"></i> Натисніть, вставте (Ctrl+V) або перетягніть файл зображення</span>
                 <input type="file" id="${fileId}" style="display:none" accept="image/*" onchange="handleFileSelect(event, (url) => { ${ref}.imageUrl = url; renderActs(); })">
                 <input type="text" placeholder="URL зображення..." value="${block.imageUrl || ''}" style="margin-top: 4px;" onclick="event.stopPropagation()" onchange="${ref}.imageUrl = this.value; renderActs();">
-                ${block.imageUrl ? `<img src="${block.imageUrl}" alt="Visual Description Image">` : ''}
+                ${block.imageUrl ? `<img src="${block.imageUrl}" alt="Visual Description Image" onclick="event.stopPropagation(); openImageLightbox(this.src);" style="cursor: zoom-in;">` : ''}
               </div>
               <button onclick="delete ${ref}.imageUrl; renderActs();" class="btn btn-danger" style="font-size:0.7rem; align-self:flex-start;"><i class="fa-solid fa-trash"></i> Видалити зображення</button>
             ` : `
@@ -972,11 +989,11 @@
             </div>
 
             ${hasImage ? `
-              <div class="image-dropzone" id="${zoneId}" onclick="triggerFileInput('${fileId}')">
-                <span class="dropzone-text"><i class="fa-solid fa-image"></i> Фото/аватар для цієї групи ворогів</span>
+              <div class="image-dropzone" id="${zoneId}" tabindex="0" onclick="triggerFileInput('${fileId}')" onpaste="handleImagePaste(event, (url) => { ${ref}.imageUrl = url; renderActs(); })">
+                <span class="dropzone-text"><i class="fa-solid fa-image"></i> Фото/аватар для цієї групи ворогів (можна вставити Ctrl+V)</span>
                 <input type="file" id="${fileId}" style="display:none" accept="image/*" onchange="handleFileSelect(event, (url) => { ${ref}.imageUrl = url; renderActs(); })">
                 <input type="text" placeholder="URL зображення ворогів..." value="${block.imageUrl || ''}" style="margin-top: 4px;" onclick="event.stopPropagation()" onchange="${ref}.imageUrl = this.value; renderActs();">
-                ${block.imageUrl ? `<img src="${block.imageUrl}" alt="Enemy Group Image">` : ''}
+                ${block.imageUrl ? `<img src="${block.imageUrl}" alt="Enemy Group Image" onclick="event.stopPropagation(); openImageLightbox(this.src);" style="cursor: zoom-in;">` : ''}
               </div>
               <button onclick="delete ${ref}.imageUrl; renderActs();" class="btn btn-danger" style="font-size:0.7rem; align-self:flex-start;"><i class="fa-solid fa-trash"></i> Видалити зображення</button>
             ` : `
@@ -1072,6 +1089,28 @@
     // (не з base64) - решта коду блоків цього не бачить, інтерфейс той самий.
     function triggerFileInput(id) {
       document.getElementById(id).click();
+    }
+
+    function handleImagePaste(event, callback) {
+      const items = event.clipboardData && event.clipboardData.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type && item.type.startsWith('image/')) {
+          event.preventDefault();
+          const file = item.getAsFile();
+          if (file) uploadImageFile(file, callback);
+          return;
+        }
+      }
+    }
+
+    function openImageLightbox(url) {
+      if (!url) return;
+      const overlay = document.createElement('div');
+      overlay.className = 'lightbox-overlay';
+      overlay.innerHTML = `<img src="${url}" class="lightbox-img" alt="Перегляд зображення">`;
+      overlay.addEventListener('click', () => overlay.remove());
+      document.body.appendChild(overlay);
     }
 
     async function uploadImageFile(file, callback) {

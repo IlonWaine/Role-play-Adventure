@@ -436,7 +436,7 @@ function renderChat() {
       : '';
 
     const imageHtml = (msg.message_type === 'image' && msg.image_url)
-      ? `<img src="${msg.image_url}" style="max-width:100%; border-radius:6px; margin-top:4px;" alt="Зображення сцени">`
+      ? `<img src="${msg.image_url}" style="max-width:100%; border-radius:6px; margin-top:4px; cursor:zoom-in;" alt="Зображення сцени" onclick="openImageLightbox(this.src)">`
       : '';
 
     return `
@@ -517,6 +517,16 @@ function handleSwipe() {
   } else if (swipeDistance < -70 && layout.classList.contains('chat-open')) {
     layout.classList.remove('chat-open');
   }
+}
+
+// Перегляд зображення на весь екран (портрет, зображення в чаті)
+function openImageLightbox(url) {
+  if (!url) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'lightbox-overlay';
+  overlay.innerHTML = `<img src="${url}" class="lightbox-img" alt="Перегляд зображення">`;
+  overlay.addEventListener('click', () => overlay.remove());
+  document.body.appendChild(overlay);
 }
 
 // Ініціалізація
