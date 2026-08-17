@@ -318,6 +318,36 @@
       align-items: center;
     }
 
+    .item-row-full {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 6px 8px;
+    }
+
+    .inv-row-main {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .inv-row-main input[type="text"] {
+      flex: 1;
+    }
+
+    .inv-qty-input {
+      width: 55px;
+      flex: none;
+    }
+
+    .inv-desc-input {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
     .add-block-actions {
       display: flex;
       flex-wrap: wrap;
@@ -486,6 +516,23 @@
           delete act.description;
           delete act.imageUrl;
         }
+      });
+
+      // Міграція старого формату предметів (рядок) у новий {name, qty, desc} -
+      // такий самий формат, як у інвентарі персонажа, щоб передача предметів
+      // із сценарію в інвентар не конфліктувала за типом даних.
+      function migrateItemBlocks(blocks) {
+        (blocks || []).forEach(block => {
+          if (block.type === 'items' && Array.isArray(block.list)) {
+            block.list = block.list.map(item =>
+              typeof item === 'string' ? { name: item, qty: 1, desc: '' } : item
+            );
+          }
+        });
+      }
+      (adventureData.acts || []).forEach(act => {
+        migrateItemBlocks(act.blocks);
+        (act.scenes || []).forEach(scene => migrateItemBlocks(scene.blocks));
       });
 
       document.getElementById('adventureTitle').value = adventureData.title;
@@ -943,9 +990,13 @@
           `;
         } else if (block.type === 'items') {
           let itemsRows = (block.list || []).map((item, itemIdx) => `
-            <div class="item-row">
-              <input type="text" value="${item}" placeholder="Назва предмета" onchange="${ref}.list[${itemIdx}] = this.value">
-              <button onclick="removeItemRow(${actIdx}, ${sceneIdxArg}, ${blockIdx}, ${itemIdx})" class="btn btn-danger" style="padding: 2px 6px;"><i class="fa-solid fa-trash"></i></button>
+            <div class="item-row-full">
+              <div class="inv-row-main">
+                <input type="text" value="${item.name}" placeholder="Назва предмета" onchange="${ref}.list[${itemIdx}].name = this.value">
+                <input type="number" value="${item.qty || 1}" min="1" class="inv-qty-input" onchange="${ref}.list[${itemIdx}].qty = parseInt(this.value) || 1">
+                <button onclick="removeItemRow(${actIdx}, ${sceneIdxArg}, ${blockIdx}, ${itemIdx})" class="btn btn-danger" style="padding: 2px 6px;"><i class="fa-solid fa-trash"></i></button>
+              </div>
+              <input type="text" value="${item.desc || ''}" placeholder="Опис предмета (необов'язково)" class="inv-desc-input" onchange="${ref}.list[${itemIdx}].desc = this.value">
             </div>
           `).join('');
 
@@ -983,7 +1034,7 @@
       let newBlock = { id: 'b_' + Date.now() + Math.random().toString(36).slice(2, 6), type: type };
       if (type === 'description') newBlock.content = '';
       if (type === 'enemies') newBlock.list = [{ name: 'Монстр', hp: 10, ac: 10, attack: '+2 (1d6)' }];
-      if (type === 'items') newBlock.list = ['Новий предмет'];
+      if (type === 'items') newBlock.list = [{ name: 'Новий предмет', qty: 1, desc: '' }];
       // Для 'visual' свідомо НЕ додаємо imageUrl/caption одразу -
       // вони опціональні і додаються окремими кнопками "+ Додати..."
 
@@ -1007,7 +1058,7 @@
     }
 
     function addItemRow(actIdx, sceneIdx, blockIdx) {
-      getBlocksArray(actIdx, sceneIdx)[blockIdx].list.push('Новий предмет');
+      getBlocksArray(actIdx, sceneIdx)[blockIdx].list.push({ name: 'Новий предмет', qty: 1, desc: '' });
       renderActs();
     }
 

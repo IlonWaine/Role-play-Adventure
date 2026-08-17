@@ -481,7 +481,7 @@ def lookup_player(player_code: str, db: Session = Depends(database.get_db)):
         "name": player.name,
         "player_code": f"{player.dm_id}-{player.id}",
         "characters": [
-            {"id": c.id, "name": c.name, "role": c.role}
+            {"id": c.id, "name": c.name, "role": c.role, "portrait_data": c.portrait_data}
             for c in player.characters
         ],
     }

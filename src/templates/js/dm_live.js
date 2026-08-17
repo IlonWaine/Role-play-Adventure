@@ -8,7 +8,7 @@ let sessionData = null;
 let chatMessages = [];
 let lastMessageId = 0;
 let isFirstMessageLoad = true;
-let draggedItemName = null;
+let draggedItem = null;
 let ws = null;
 
 async function init() {
@@ -23,6 +23,7 @@ async function init() {
   if (!sessionData) return;
 
   setupChatRecipientOptions();
+  setupKeyboardResize();
   await loadMessages();
 
   connectWebSocket();
@@ -229,15 +230,18 @@ function renderBlocksReadonly(blocks, container) {
         });
       });
     } else if (block.type === 'items') {
-      const chips = (block.list || []).map(item => `<div class="item-chip" draggable="true">🎁 ${item}</div>`).join('');
+      // Захист від старих історій, де предмет міг бути просто рядком -
+      // приводимо до того самого {name, qty, desc}, що й інвентар персонажа.
+      const items = (block.list || []).map(item => typeof item === 'string' ? { name: item, qty: 1, desc: '' } : item);
+      const chips = items.map(item => `<div class="item-chip" draggable="true">🎁 ${item.name}${item.qty > 1 ? ` x${item.qty}` : ''}</div>`).join('');
       el.innerHTML = `
         <div class="scene-block-header">🎁 Предмети / Лут</div>
         <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;">${chips}</div>
       `;
       el.querySelectorAll('.item-chip').forEach((chip, i) => {
-        const itemName = (block.list || [])[i];
+        const item = items[i];
         chip.addEventListener('dragstart', () => {
-          draggedItemName = itemName;
+          draggedItem = item;
           chip.classList.add('dragging');
         });
         chip.addEventListener('dragend', () => chip.classList.remove('dragging'));
@@ -276,7 +280,7 @@ async function updateEnemyHp(blockId, enemyIdx, value) {
 // --- ПЕРЕДАЧА ПРЕДМЕТІВ DRAG & DROP ---
 function setupItemDropZone(el) {
   el.addEventListener('dragover', (e) => {
-    if (draggedItemName === null) return;
+    if (draggedItem === null) return;
     e.preventDefault();
     el.classList.add('drag-over');
   });
@@ -284,18 +288,23 @@ function setupItemDropZone(el) {
   el.addEventListener('drop', (e) => {
     e.preventDefault();
     el.classList.remove('drag-over');
-    if (draggedItemName === null) return;
+    if (draggedItem === null) return;
     const targetCharId = parseInt(el.dataset.charId);
-    giveItemToCharacter(targetCharId, draggedItemName);
-    draggedItemName = null;
+    giveItemToCharacter(targetCharId, draggedItem);
+    draggedItem = null;
   });
 }
 
-async function giveItemToCharacter(targetCharId, itemName) {
+async function giveItemToCharacter(targetCharId, item) {
   const participant = sessionData.participants.find(p => p.id === targetCharId);
   if (!participant) return;
 
-  const newInventory = [...(participant.inventory || []), { name: itemName, qty: 1, desc: '' }];
+  // Копія предмета, а не сам об'єкт з блоку сценарію - дарування персонажу
+  // не повинно змінювати шаблон "Предмети" в самій історії.
+  const newInventory = [
+    ...(participant.inventory || []),
+    { name: item.name, qty: item.qty || 1, desc: item.desc || '' }
+  ];
 
   try {
     const res = await fetch(`/api/characters/${targetCharId}`, {
@@ -307,7 +316,7 @@ async function giveItemToCharacter(targetCharId, itemName) {
       const updated = await res.json();
       participant.inventory = updated.inventory;
       renderParticipants();
-      await sendDmChatMessage('all', null, `🎁 DM передав "${itemName}" гравцю ${participant.name}.`);
+      await sendDmChatMessage('all', null, `🎁 DM передав "${item.name}" гравцю ${participant.name}.`);
     } else {
       alert('Помилка передачі предмета.');
     }
@@ -333,7 +342,40 @@ function toggleChat() {
   document.getElementById('unreadBadge').style.display = 'none';
 }
 
+// На мобільних 100vh/100dvh не завжди звужується разом з появою клавіатури -
+// підганяємо висоту чат-панелі під window.visualViewport.
+function setupKeyboardResize() {
+  if (!window.visualViewport) return;
+
+  const sidebar = document.getElementById('chatSidebar');
+  const vv = window.visualViewport;
+
+  function updateHeight() {
+    sidebar.style.height = vv.height + 'px';
+  }
+
+  vv.addEventListener('resize', updateHeight);
+  vv.addEventListener('scroll', updateHeight);
+  updateHeight();
+
+  const chatInput = document.getElementById('chatInput');
+  if (chatInput) {
+    chatInput.addEventListener('focus', () => {
+      setTimeout(() => {
+        chatInput.scrollIntoView({ block: 'end', behavior: 'smooth' });
+      }, 150);
+    });
+  }
+}
+
+let isLoadingMessages = false;
+
 async function loadMessages() {
+  // Той самий захист від дубля, що й у character_logic.js: WS-сигнал
+  // і прямий виклик після власного POST можуть перекритись у часі.
+  if (isLoadingMessages) return;
+  isLoadingMessages = true;
+
   try {
     const res = await fetch(`/api/sessions/${sessionId}/messages?viewer_type=dm&after_id=${lastMessageId}`);
     if (!res.ok) return;
@@ -351,6 +393,8 @@ async function loadMessages() {
     isFirstMessageLoad = false;
   } catch (err) {
     console.error(err);
+  } finally {
+    isLoadingMessages = false;
   }
 }
 

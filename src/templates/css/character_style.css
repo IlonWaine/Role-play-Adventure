@@ -367,10 +367,25 @@ body {
   border-radius: 6px;
   padding: 8px 12px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 4px;
   font-size: 0.9rem;
   color: var(--text-main);
+}
+
+.inventory-item-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.inventory-item-name {
+  font-weight: 600;
+}
+
+.inventory-item-desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
 }
 
 .item-actions {
@@ -526,6 +541,7 @@ body {
   right: 0;
   width: var(--chat-width);
   height: 100vh;
+  height: 100dvh; /* динамічна висота - враховує появу мобільної клавіатури */
   background: var(--card-bg);
   border-left: 1px solid var(--border-color);
   box-shadow: -5px 0 20px rgba(0,0,0,0.5);

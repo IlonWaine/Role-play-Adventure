@@ -57,6 +57,7 @@ async function init() {
 
   renderCharacter();
   setupRecipientOptions();
+  setupKeyboardResize();
   await loadMessages();
 
   connectWebSocket();
@@ -179,11 +180,14 @@ function renderInventory() {
   const invList = document.getElementById('inventory-list');
   invList.innerHTML = (charData.inventory || []).map((item, idx) => `
     <li class="inventory-item">
-      <span>${item.name}${item.qty && item.qty > 1 ? ` (${item.qty})` : ''}</span>
-      <div class="item-actions">
-        <button class="btn-action" title="Передати гравцю" onclick="tradeIndividualItem(${idx})">🔄</button>
-        <button class="btn-action" title="Викинути" onclick="removeItem(${idx})">🗑️</button>
+      <div class="inventory-item-main">
+        <span class="inventory-item-name">${item.name}${item.qty && item.qty > 1 ? ` x${item.qty}` : ''}</span>
+        <div class="item-actions">
+          <button class="btn-action" title="Передати гравцю" onclick="tradeIndividualItem(${idx})">🔄</button>
+          <button class="btn-action" title="Викинути" onclick="removeItem(${idx})">🗑️</button>
+        </div>
       </div>
+      ${item.desc ? `<div class="inventory-item-desc">${item.desc}</div>` : ''}
     </li>
   `).join('');
 
@@ -357,7 +361,46 @@ function toggleChat() {
   document.getElementById('unread-badge').style.display = 'none';
 }
 
+// На мобільних 100vh/100dvh не завжди звужується разом з появою клавіатури
+// (особливо у старіших WebView) - тому підганяємо висоту чат-панелі під
+// window.visualViewport, який коректно відображає реально видиму область.
+function setupKeyboardResize() {
+  if (!window.visualViewport) return;
+
+  const sidebar = document.getElementById('chat-sidebar');
+  const vv = window.visualViewport;
+
+  function updateHeight() {
+    sidebar.style.height = vv.height + 'px';
+  }
+
+  vv.addEventListener('resize', updateHeight);
+  vv.addEventListener('scroll', updateHeight);
+  updateHeight();
+
+  // Додатковий страхувальний захід: коли поле вводу отримує фокус,
+  // прокручуємо його у видиму область (деякі Android-браузери піднімають
+  // клавіатуру з невеликою затримкою відносно події resize).
+  const chatInput = document.getElementById('chat-input');
+  if (chatInput) {
+    chatInput.addEventListener('focus', () => {
+      setTimeout(() => {
+        chatInput.scrollIntoView({ block: 'end', behavior: 'smooth' });
+      }, 150);
+    });
+  }
+}
+
+let isLoadingMessages = false;
+
 async function loadMessages() {
+  // Захист від подвійного відображення: WS-сигнал "chat" і прямий виклик
+  // після власного POST можуть спрацювати майже одночасно й обидва
+  // прочитати ще не оновлений lastMessageId - без цього прапорця повідомлення
+  // додається в chatMessages двічі.
+  if (isLoadingMessages) return;
+  isLoadingMessages = true;
+
   try {
     const res = await fetch(`/api/sessions/${sessionId}/messages?viewer_type=character&viewer_id=${charId}&after_id=${lastMessageId}`);
     if (!res.ok) return;
@@ -375,6 +418,8 @@ async function loadMessages() {
     isFirstMessageLoad = false;
   } catch (err) {
     console.error(err);
+  } finally {
+    isLoadingMessages = false;
   }
 }
 

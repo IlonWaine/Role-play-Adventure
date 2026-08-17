@@ -434,14 +434,20 @@ if (dmLoginForm) dmLoginForm.addEventListener('submit', handleLogin);
         const item = document.createElement('div');
         item.className = 'char-item';
         item.innerHTML = `
+          ${c.portrait_data
+            ? `<img src="${c.portrait_data}" alt="${c.name}" style="width:40px; height:40px; border-radius:6px; object-fit:cover; margin-right:0.6rem; flex-shrink:0;">`
+            : `<div style="width:40px; height:40px; border-radius:6px; background:rgba(0,0,0,0.08); display:flex; align-items:center; justify-content:center; margin-right:0.6rem; flex-shrink:0;"><i class="fa-solid fa-user-shield" style="opacity:0.4;"></i></div>`
+          }
           <div class="char-info">
-            <h5><i class="fa-solid fa-user-shield"></i> ${c.name}</h5>
+            <h5>${c.name}</h5>
             <p>${c.role || 'Роль не вказана'}</p>
           </div>
           <button class="btn btn-blue" style="font-size:0.65rem; padding:0.3rem 0.6rem;">
             🔍 Відкрити
           </button>
         `;
+        item.style.display = 'flex';
+        item.style.alignItems = 'center';
 
         item.querySelector('button').addEventListener('click', () => {
           window.location.href = `/character_creation?char_id=${c.id}&player_id=${player.id}`;
