@@ -17,12 +17,12 @@ const emptyCharacterTemplate = {
   ac: 10,
   maxSlots: 10,
   stats: [
-    { name: "💪 Сила", val: 10 },
-    { name: "🏃 Спритність", val: 10 },
-    { name: "🛡️ Тілобудова", val: 10 },
-    { name: "🧠 Інтелект", val: 10 },
-    { name: "🔎 Мудрість", val: 10 },
-    { name: "🎭 Харизма", val: 10 }
+    { name: "💪 Сила", val: 0 },
+    { name: "🏃 Спритність", val: 0 },
+    { name: "🧐 Ініціатива", val: 0 },
+    { name: "🔮 Магія", val: 0 },
+    { name: "🔎 Допитливість", val: 0 },
+    { name: "🎭 Харизма", val: 0 }
   ],
   abilities: [],
   inventory: [],
