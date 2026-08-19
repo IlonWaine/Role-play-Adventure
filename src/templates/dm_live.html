@@ -149,6 +149,13 @@
       color: var(--accent-gold);
     }
 
+    .item-chips-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
     /* СЦЕНАРІЙ (read-only вигляд, як у DM_create) */
     .act-card {
       background-color: var(--bg-element);
@@ -191,6 +198,11 @@
     }
     .scene-block img { max-width: 100%; max-height: 200px; border-radius: 4px; object-fit: cover; }
 
+    .enemy-row-live-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
     .enemy-row-live {
       display: grid;
       grid-template-columns: 2fr 1fr 1.5fr 1.5fr;
@@ -200,6 +212,12 @@
       padding: 6px 8px;
       border-radius: 4px;
       font-size: 0.8rem;
+    }
+    .enemy-special-live {
+      font-size: 0.72rem;
+      color: var(--accent-gold);
+      padding: 0 8px;
+      font-style: italic;
     }
     .enemy-hp-input {
       width: 50px;

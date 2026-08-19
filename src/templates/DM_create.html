@@ -294,6 +294,11 @@
     }
 
     /* ENEMY ROW WITH ICONS */
+    .enemy-row-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
     .enemy-row {
       display: grid;
       grid-template-columns: 2fr 1.2fr 1fr 1.5fr auto;
@@ -310,6 +315,12 @@
       font-size: 0.8rem;
     }
     .enemy-input-group input { padding: 4px; font-size: 0.75rem; }
+    .enemy-special-input {
+      font-size: 0.75rem;
+      color: var(--accent-gold);
+      background-color: var(--bg-input);
+      border: 1px dashed var(--border-color);
+    }
 
     /* ITEMS */
     .item-row {
@@ -964,21 +975,24 @@
           const fileId = `enemy-file-${actIdx}-${idScope}-${blockIdx}`;
 
           let enemiesRows = (block.list || []).map((e, enemyIdx) => `
-            <div class="enemy-row">
-              <input type="text" value="${e.name}" placeholder="Ім'я ворога" onchange="${ref}.list[${enemyIdx}].name = this.value">
-              <div class="enemy-input-group">
-                <span>❤️</span>
-                <input type="number" value="${e.hp}" placeholder="HP" onchange="${ref}.list[${enemyIdx}].hp = +this.value">
+            <div class="enemy-row-wrapper">
+              <div class="enemy-row">
+                <input type="text" value="${e.name}" placeholder="Ім'я ворога" onchange="${ref}.list[${enemyIdx}].name = this.value">
+                <div class="enemy-input-group">
+                  <span>❤️</span>
+                  <input type="number" value="${e.hp}" placeholder="HP" onchange="${ref}.list[${enemyIdx}].hp = +this.value">
+                </div>
+                <div class="enemy-input-group">
+                  <span>🛡️</span>
+                  <input type="number" value="${e.ac}" placeholder="AC" onchange="${ref}.list[${enemyIdx}].ac = +this.value">
+                </div>
+                <div class="enemy-input-group">
+                  <span>⚔️</span>
+                  <input type="text" value="${e.attack}" placeholder="Атака" onchange="${ref}.list[${enemyIdx}].attack = this.value">
+                </div>
+                <button onclick="removeEnemy(${actIdx}, ${sceneIdxArg}, ${blockIdx}, ${enemyIdx})" class="btn btn-danger" style="padding: 2px 4px;"><i class="fa-solid fa-trash"></i></button>
               </div>
-              <div class="enemy-input-group">
-                <span>🛡️</span>
-                <input type="number" value="${e.ac}" placeholder="AC" onchange="${ref}.list[${enemyIdx}].ac = +this.value">
-              </div>
-              <div class="enemy-input-group">
-                <span>⚔️</span>
-                <input type="text" value="${e.attack}" placeholder="Атака" onchange="${ref}.list[${enemyIdx}].attack = this.value">
-              </div>
-              <button onclick="removeEnemy(${actIdx}, ${sceneIdxArg}, ${blockIdx}, ${enemyIdx})" class="btn btn-danger" style="padding: 2px 4px;"><i class="fa-solid fa-trash"></i></button>
+              <input type="text" value="${e.special || ''}" placeholder="🌟 Спецатака (необов'язково) - напр. 'Атакує двічі підряд' або 'Отруйна атака - 3 шкоди щохід'" class="enemy-special-input" onchange="${ref}.list[${enemyIdx}].special = this.value">
             </div>
           `).join('');
 

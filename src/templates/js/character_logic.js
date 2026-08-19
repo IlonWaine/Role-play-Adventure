@@ -178,18 +178,27 @@ function renderAbilities() {
 
 function renderInventory() {
   const invList = document.getElementById('inventory-list');
-  invList.innerHTML = (charData.inventory || []).map((item, idx) => `
-    <li class="inventory-item">
+  invList.innerHTML = (charData.inventory || []).map((item, idx) => {
+    const qty = item.qty ?? 1;
+    return `
+    <li class="inventory-item${qty === 0 ? ' zero-qty' : ''}">
       <div class="inventory-item-main">
-        <span class="inventory-item-name">${item.name}${item.qty && item.qty > 1 ? ` x${item.qty}` : ''}</span>
+        <span class="inventory-item-name">${item.name}</span>
+        <div class="item-qty-controls">
+          <button class="btn-action" title="Зменшити кількість" onclick="changeItemQty(${idx}, -1)">➖</button>
+          <span class="item-qty-value">${qty}</span>
+          <button class="btn-action" title="Збільшити кількість" onclick="changeItemQty(${idx}, 1)">➕</button>
+        </div>
         <div class="item-actions">
           <button class="btn-action" title="Передати гравцю" onclick="tradeIndividualItem(${idx})">🔄</button>
-          <button class="btn-action" title="Викинути" onclick="removeItem(${idx})">🗑️</button>
+          <button class="btn-action" title="Викинути назавжди" onclick="removeItem(${idx})">🗑️</button>
         </div>
       </div>
+      ${qty === 0 ? `<div class="inventory-item-desc">Немає при собі - можна підняти пізніше</div>` : ''}
       ${item.desc ? `<div class="inventory-item-desc">${item.desc}</div>` : ''}
     </li>
-  `).join('');
+  `;
+  }).join('');
 
   document.getElementById('slot-count').innerText = `Слоти: ${(charData.inventory || []).length} / ${charData.max_slots}`;
 }
@@ -337,6 +346,18 @@ function removeItem(index) {
     saveCharacter();
     renderInventory();
   }
+}
+
+function changeItemQty(index, delta) {
+  const item = charData.inventory[index];
+  if (!item) return;
+  // Мінімум 0, НЕ видаляємо запис при нулі - предмет може бути покладений
+  // "поруч" (напр. кинутий кинджал) і піднятий назад пізніше. Зовсім
+  // прибрати з інвентарю можна лише окремою кнопкою 🗑️.
+  const current = item.qty ?? 1;
+  item.qty = Math.max(0, current + delta);
+  saveCharacter();
+  renderInventory();
 }
 
 function toggleBlock(headerElement) {

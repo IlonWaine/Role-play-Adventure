@@ -206,11 +206,14 @@ function renderBlocksReadonly(blocks, container) {
       const rows = (block.list || []).map((enemy, enemyIdx) => {
         const liveHp = getEnemyHp(block.id, enemyIdx, enemy.hp);
         return `
-          <div class="enemy-row-live">
-            <span>${enemy.name}</span>
-            <span>🛡️ ${enemy.ac}</span>
-            <span>⚔️ ${enemy.attack}</span>
-            <span>❤️ <input type="number" value="${liveHp}" class="enemy-hp-input" data-block-id="${block.id}" data-enemy-idx="${enemyIdx}"> / ${enemy.hp}</span>
+          <div class="enemy-row-live-wrapper">
+            <div class="enemy-row-live">
+              <span>${enemy.name}</span>
+              <span>🛡️ ${enemy.ac}</span>
+              <span>⚔️ ${enemy.attack}</span>
+              <span>❤️ <input type="number" value="${liveHp}" class="enemy-hp-input" data-block-id="${block.id}" data-enemy-idx="${enemyIdx}"> / ${enemy.hp}</span>
+            </div>
+            ${enemy.special ? `<div class="enemy-special-live">🌟 ${enemy.special}</div>` : ''}
           </div>
         `;
       }).join('');
@@ -233,10 +236,15 @@ function renderBlocksReadonly(blocks, container) {
       // Захист від старих історій, де предмет міг бути просто рядком -
       // приводимо до того самого {name, qty, desc}, що й інвентар персонажа.
       const items = (block.list || []).map(item => typeof item === 'string' ? { name: item, qty: 1, desc: '' } : item);
+      block.list = items; // нормалізуємо на місці - подальші .push() будуть у правильному форматі
+
       const chips = items.map(item => `<div class="item-chip" draggable="true">🎁 ${item.name}${item.qty > 1 ? ` x${item.qty}` : ''}</div>`).join('');
       el.innerHTML = `
         <div class="scene-block-header">🎁 Предмети / Лут</div>
-        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;">${chips}</div>
+        <div class="item-chips-row">${chips}</div>
+        <button type="button" class="btn btn-outline add-item-btn" style="font-size:0.7rem; margin-top:6px;">
+          <i class="fa-solid fa-plus"></i> Додати предмет
+        </button>
       `;
       el.querySelectorAll('.item-chip').forEach((chip, i) => {
         const item = items[i];
@@ -246,10 +254,57 @@ function renderBlocksReadonly(blocks, container) {
         });
         chip.addEventListener('dragend', () => chip.classList.remove('dragging'));
       });
+
+      // Створення предмета "на ходу" (для непередбачуваних ситуацій).
+      // Свідомо НЕ зберігається окремо в БД сесії/історії - додається лише
+      // в локальний стан цієї вкладки браузера. Реально збережеться щойно
+      // DM перетягне його на картку персонажа (giveItemToCharacter пише
+      // прямо в БД персонажа).
+      el.querySelector('.add-item-btn').addEventListener('click', () => {
+        openAddItemModal((newItem) => {
+          block.list.push(newItem);
+          renderActs();
+        });
+      });
     }
 
     container.appendChild(el);
   });
+}
+
+function openAddItemModal(onConfirm) {
+  const overlay = document.createElement('div');
+  overlay.className = 'lightbox-overlay';
+  overlay.style.cursor = 'default';
+  overlay.innerHTML = `
+    <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:10px; padding:16px; width:100%; max-width:320px; display:flex; flex-direction:column; gap:8px;" onclick="event.stopPropagation()">
+      <div style="font-weight:700; color:var(--accent-gold);">🎁 Новий предмет</div>
+      <input type="text" id="newItemName" placeholder="Назва предмета" style="background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main); padding:6px 8px;">
+      <input type="number" id="newItemQty" value="1" min="1" placeholder="Кількість" style="background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main); padding:6px 8px;">
+      <input type="text" id="newItemDesc" placeholder="Опис (необов'язково)" style="background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main); padding:6px 8px;">
+      <div style="display:flex; gap:8px; margin-top:4px;">
+        <button type="button" id="cancelAddItem" class="btn btn-dark" style="flex:1;">Скасувати</button>
+        <button type="button" id="confirmAddItem" class="btn btn-gold" style="flex:1;">Додати</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#cancelAddItem').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#confirmAddItem').addEventListener('click', () => {
+    const name = overlay.querySelector('#newItemName').value.trim();
+    if (!name) {
+      alert('Введіть назву предмета.');
+      return;
+    }
+    const qty = parseInt(overlay.querySelector('#newItemQty').value) || 1;
+    const desc = overlay.querySelector('#newItemDesc').value.trim();
+    overlay.remove();
+    onConfirm({ name, qty, desc });
+  });
+
+  overlay.querySelector('#newItemName').focus();
 }
 
 function getEnemyHp(blockId, enemyIdx, defaultVal) {

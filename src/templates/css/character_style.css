@@ -377,6 +377,30 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.item-qty-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.item-qty-value {
+  min-width: 20px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--accent-gold);
+}
+
+.inventory-item.zero-qty {
+  opacity: 0.55;
+}
+
+.inventory-item.zero-qty .item-qty-value {
+  color: var(--text-muted);
 }
 
 .inventory-item-name {
@@ -527,13 +551,10 @@ body {
 
 .portrait-img {
   width: 100%;
-  max-height: 500px;
   height: auto;
-  object-fit: contain;
   border-radius: 6px;
   border: 1px solid var(--border-color);
   display: block;
-  background: var(--card-inner-bg);
   cursor: zoom-in;
 }
 
