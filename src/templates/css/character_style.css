@@ -347,10 +347,12 @@ body {
   font-style: italic;
   color: var(--text-muted);
   margin-bottom: 4px;
+  white-space: pre-line;
 }
 
 .ability-desc {
   font-size: 0.9rem;
+  white-space: pre-line;
 }
 
 /* ІНВЕНТАР */
@@ -410,6 +412,7 @@ body {
 .inventory-item-desc {
   font-size: 0.78rem;
   color: var(--text-muted);
+  white-space: pre-line;
 }
 
 .item-actions {

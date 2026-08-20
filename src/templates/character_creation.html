@@ -146,8 +146,9 @@
       <h2 class="card-title">🖼️ Портрет (1024×1536)</h2>
       <div class="portrait-upload-container">
         <div class="drop-zone" id="drop-zone" tabindex="0" onpaste="handleImagePaste(event, (url) => { dmData.portraitData = url; showPortraitPreview(url); document.getElementById('dm-portrait-url').value = url; })">
-          <p class="drop-text">📁 Перетягніть фото, натисніть або вставте (Ctrl+V)</p>
+          <p class="drop-text">📁 Клікніть тут і вставте (Ctrl+V), або перетягніть файл</p>
           <span class="drop-hint">(Рекомендовано: 1024×1536)</span>
+          <button type="button" class="btn-submit" style="margin-top: 8px; font-size: 0.85rem;" onclick="document.getElementById('portrait-file-input').click()">📂 Завантажити з ПК</button>
           <input type="file" id="portrait-file-input" accept="image/*" class="file-input-hidden" onchange="handleFileSelect(event)">
         </div>
 

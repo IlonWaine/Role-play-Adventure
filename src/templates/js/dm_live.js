@@ -9,6 +9,7 @@ let chatMessages = [];
 let lastMessageId = 0;
 let isFirstMessageLoad = true;
 let draggedItem = null;
+let selectedItemForGiving = null; // тап-альтернатива drag&drop для мобільних
 let ws = null;
 
 async function init() {
@@ -125,7 +126,7 @@ function renderParticipants() {
       </div>
       ${p.goal ? `<div style="font-size:0.7rem; color:var(--text-muted); margin-top:6px;"><i class="fa-solid fa-bullseye"></i> ${p.goal}</div>` : ''}
       <div class="item-drop-zone" data-char-id="${p.id}">
-        <i class="fa-solid fa-hand-holding-heart"></i> Перетягніть предмет сюди
+        <i class="fa-solid fa-hand-holding-heart"></i> Перетягніть сюди або торкніться після вибору предмета
       </div>
     `;
     container.appendChild(card);
@@ -152,12 +153,30 @@ function renderActs() {
     header.innerText = act.title;
     actCard.appendChild(header);
 
+    if (!act.blocks) act.blocks = [];
+
     const actBlocksWrap = document.createElement('div');
     actBlocksWrap.style.display = 'flex';
     actBlocksWrap.style.flexDirection = 'column';
     actBlocksWrap.style.gap = '10px';
-    renderBlocksReadonly(act.blocks || [], actBlocksWrap);
+    renderBlocksReadonly(act.blocks, actBlocksWrap);
     actCard.appendChild(actBlocksWrap);
+
+    // Якщо в цьому Акті ще немає жодного блоку "Предмети" - даємо кнопку
+    // створити його прямо тут, щоб не залежати від того, чи DM додав його
+    // заздалегідь у редакторі історії.
+    if (!act.blocks.some(b => b.type === 'items')) {
+      const addItemsBlockBtn = document.createElement('button');
+      addItemsBlockBtn.type = 'button';
+      addItemsBlockBtn.className = 'btn btn-dark';
+      addItemsBlockBtn.style.cssText = 'font-size:0.7rem; align-self:flex-start;';
+      addItemsBlockBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Створити блок предметів';
+      addItemsBlockBtn.addEventListener('click', () => {
+        act.blocks.push({ id: 'adhoc_' + Date.now(), type: 'items', list: [] });
+        renderActs();
+      });
+      actCard.appendChild(addItemsBlockBtn);
+    }
 
     (act.scenes || []).forEach(scene => {
       const sceneCard = document.createElement('div');
@@ -169,12 +188,27 @@ function renderActs() {
       sceneHeader.innerText = scene.title;
       sceneCard.appendChild(sceneHeader);
 
+      if (!scene.blocks) scene.blocks = [];
+
       const sceneBlocksWrap = document.createElement('div');
       sceneBlocksWrap.style.display = 'flex';
       sceneBlocksWrap.style.flexDirection = 'column';
       sceneBlocksWrap.style.gap = '8px';
-      renderBlocksReadonly(scene.blocks || [], sceneBlocksWrap);
+      renderBlocksReadonly(scene.blocks, sceneBlocksWrap);
       sceneCard.appendChild(sceneBlocksWrap);
+
+      if (!scene.blocks.some(b => b.type === 'items')) {
+        const addItemsBlockBtn = document.createElement('button');
+        addItemsBlockBtn.type = 'button';
+        addItemsBlockBtn.className = 'btn btn-dark';
+        addItemsBlockBtn.style.cssText = 'font-size:0.7rem; align-self:flex-start; margin-top:6px;';
+        addItemsBlockBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Створити блок предметів';
+        addItemsBlockBtn.addEventListener('click', () => {
+          scene.blocks.push({ id: 'adhoc_' + Date.now(), type: 'items', list: [] });
+          renderActs();
+        });
+        sceneCard.appendChild(addItemsBlockBtn);
+      }
 
       actCard.appendChild(sceneCard);
     });
@@ -191,45 +225,56 @@ function renderBlocksReadonly(blocks, container) {
     if (block.type === 'description') {
       el.innerHTML = `
         <div class="scene-block-header">📝 Опис</div>
-        <p style="font-size:0.85rem;">${block.content || ''}</p>
+        <p style="font-size:0.85rem; white-space: pre-line;">${block.content || ''}</p>
       `;
     } else if (block.type === 'visual') {
       el.innerHTML = `
         <div class="scene-block-header">🖼️ Візуальний опис</div>
         ${block.imageUrl ? `<img src="${block.imageUrl}" alt="Візуал" onclick="openImageLightbox(this.src)" style="cursor:zoom-in;"><br>
           <button class="btn btn-outline share-img-btn" style="font-size:0.7rem; margin-top:6px;"><i class="fa-solid fa-share"></i> Поділитись у чаті</button>` : ''}
-        ${block.caption ? `<div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">${block.caption}</div>` : ''}
+        ${block.caption ? `<div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px; white-space: pre-line;">${block.caption}</div>` : ''}
       `;
       const shareBtn = el.querySelector('.share-img-btn');
       if (shareBtn) shareBtn.addEventListener('click', () => shareImageToChat(block.imageUrl));
     } else if (block.type === 'enemies') {
-      const rows = (block.list || []).map((enemy, enemyIdx) => {
-        const liveHp = getEnemyHp(block.id, enemyIdx, enemy.hp);
-        return `
-          <div class="enemy-row-live-wrapper">
-            <div class="enemy-row-live">
-              <span>${enemy.name}</span>
-              <span>🛡️ ${enemy.ac}</span>
-              <span>⚔️ ${enemy.attack}</span>
-              <span>❤️ <input type="number" value="${liveHp}" class="enemy-hp-input" data-block-id="${block.id}" data-enemy-idx="${enemyIdx}"> / ${enemy.hp}</span>
+      // Один шаблонний рядок ("Гоблін ×3") розгортається тут у незалежні
+      // екземпляри - кожен зі своїм живим HP. Ключ стану: "enemyIdx_instanceIdx"
+      // (composite string) замість простого enemyIdx - жодних змін бекенду
+      // не потрібно, enemy_hp і так довільний {block_id: {ключ: hp}}.
+      const rows = [];
+      (block.list || []).forEach((enemy, enemyIdx) => {
+        const qty = Math.max(1, enemy.qty || 1);
+        for (let instanceIdx = 0; instanceIdx < qty; instanceIdx++) {
+          const compositeKey = `${enemyIdx}_${instanceIdx}`;
+          const liveHp = getEnemyHp(block.id, compositeKey, enemy.hp);
+          const label = qty > 1 ? `${enemy.name} #${instanceIdx + 1}` : enemy.name;
+          rows.push(`
+            <div class="enemy-row-live-wrapper">
+              <div class="enemy-row-live">
+                <span>${label}</span>
+                <span>🛡️ ${enemy.ac}</span>
+                <span>⚔️ ${enemy.attack}</span>
+                <span>❤️ <input type="number" value="${liveHp}" class="enemy-hp-input" data-block-id="${block.id}" data-enemy-idx="${compositeKey}"> / ${enemy.hp}</span>
+              </div>
+              ${enemy.special ? `<div class="enemy-special-live">🌟 ${enemy.special}</div>` : ''}
             </div>
-            ${enemy.special ? `<div class="enemy-special-live">🌟 ${enemy.special}</div>` : ''}
-          </div>
-        `;
-      }).join('');
+          `);
+        }
+      });
+      const rowsHtml = rows.join('');
 
       el.innerHTML = `
         <div class="scene-block-header">⚔️ Група ворогів</div>
         ${block.imageUrl ? `<img src="${block.imageUrl}" alt="Вороги" onclick="openImageLightbox(this.src)" style="cursor:zoom-in;"><br>
           <button class="btn btn-outline share-img-btn" style="font-size:0.7rem; margin-top:6px;"><i class="fa-solid fa-share"></i> Поділитись у чаті</button>` : ''}
-        <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">${rows}</div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">${rowsHtml}</div>
       `;
       const shareBtn = el.querySelector('.share-img-btn');
       if (shareBtn) shareBtn.addEventListener('click', () => shareImageToChat(block.imageUrl));
 
       el.querySelectorAll('.enemy-hp-input').forEach(input => {
         input.addEventListener('change', () => {
-          updateEnemyHp(input.dataset.blockId, parseInt(input.dataset.enemyIdx), input.value);
+          updateEnemyHp(input.dataset.blockId, input.dataset.enemyIdx, input.value);
         });
       });
     } else if (block.type === 'items') {
@@ -253,6 +298,19 @@ function renderBlocksReadonly(blocks, container) {
           chip.classList.add('dragging');
         });
         chip.addEventListener('dragend', () => chip.classList.remove('dragging'));
+
+        // Тап-альтернатива drag&drop для мобільних (native HTML5 drag&drop
+        // ненадійний на сенсорних екранах). Тап по предмету виділяє його,
+        // повторний тап по тому ж предмету знімає виділення.
+        chip.addEventListener('click', () => {
+          if (selectedItemForGiving === item) {
+            clearItemSelection();
+          } else {
+            clearItemSelection();
+            selectedItemForGiving = item;
+            chip.classList.add('selected');
+          }
+        });
       });
 
       // Створення предмета "на ходу" (для непередбачуваних ситуацій).
@@ -307,25 +365,25 @@ function openAddItemModal(onConfirm) {
   overlay.querySelector('#newItemName').focus();
 }
 
-function getEnemyHp(blockId, enemyIdx, defaultVal) {
+function getEnemyHp(blockId, instanceKey, defaultVal) {
   const override = sessionData.state && sessionData.state.enemy_hp
     && sessionData.state.enemy_hp[blockId]
-    && sessionData.state.enemy_hp[blockId][String(enemyIdx)];
+    && sessionData.state.enemy_hp[blockId][String(instanceKey)];
   return override !== undefined ? override : defaultVal;
 }
 
-async function updateEnemyHp(blockId, enemyIdx, value) {
+async function updateEnemyHp(blockId, instanceKey, value) {
   const hp = parseInt(value) || 0;
   sessionData.state = sessionData.state || {};
   sessionData.state.enemy_hp = sessionData.state.enemy_hp || {};
   sessionData.state.enemy_hp[blockId] = sessionData.state.enemy_hp[blockId] || {};
-  sessionData.state.enemy_hp[blockId][String(enemyIdx)] = hp;
+  sessionData.state.enemy_hp[blockId][String(instanceKey)] = hp;
 
   try {
     await fetch(`/api/sessions/${sessionId}/state`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enemy_hp: { [blockId]: { [enemyIdx]: hp } } })
+      body: JSON.stringify({ enemy_hp: { [blockId]: { [instanceKey]: hp } } })
     });
   } catch (err) {
     console.error(err);
@@ -348,20 +406,42 @@ function setupItemDropZone(el) {
     giveItemToCharacter(targetCharId, draggedItem);
     draggedItem = null;
   });
+
+  // Тап-альтернатива для мобільних: спочатку торкнутись предмета
+  // (позначається жовтою рамкою), потім торкнутись цієї зони.
+  el.addEventListener('click', () => {
+    if (selectedItemForGiving === null) return;
+    const targetCharId = parseInt(el.dataset.charId);
+    giveItemToCharacter(targetCharId, selectedItemForGiving);
+    clearItemSelection();
+  });
 }
 
-async function giveItemToCharacter(targetCharId, item) {
-  const participant = sessionData.participants.find(p => p.id === targetCharId);
-  if (!participant) return;
+function clearItemSelection() {
+  selectedItemForGiving = null;
+  document.querySelectorAll('.item-chip.selected').forEach(c => c.classList.remove('selected'));
+}
 
-  // Копія предмета, а не сам об'єкт з блоку сценарію - дарування персонажу
-  // не повинно змінювати шаблон "Предмети" в самій історії.
-  const newInventory = [
-    ...(participant.inventory || []),
-    { name: item.name, qty: item.qty || 1, desc: item.desc || '' }
-  ];
+let isGivingItem = false;
+
+async function giveItemToCharacter(targetCharId, item) {
+  // Захист від подвійного дарування - нестабільний native drag&drop на
+  // сенсорних екранах іноді спрацьовує двічі поспіль, даючи предмет
+  // двома окремими записами замість одного.
+  if (isGivingItem) return;
+  isGivingItem = true;
 
   try {
+    const participant = sessionData.participants.find(p => p.id === targetCharId);
+    if (!participant) return;
+
+    // Копія предмета, а не сам об'єкт з блоку сценарію - дарування персонажу
+    // не повинно змінювати шаблон "Предмети" в самій історії.
+    const newInventory = [
+      ...(participant.inventory || []),
+      { name: item.name, qty: item.qty || 1, desc: item.desc || '' }
+    ];
+
     const res = await fetch(`/api/characters/${targetCharId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -378,6 +458,8 @@ async function giveItemToCharacter(targetCharId, item) {
   } catch (err) {
     console.error(err);
     alert("Помилка з'єднання з сервером.");
+  } finally {
+    isGivingItem = false;
   }
 }
 

@@ -270,8 +270,9 @@ function setupDragAndDrop() {
   const dropZone = document.getElementById('drop-zone');
   const fileInput = document.getElementById('portrait-file-input');
 
-  dropZone.addEventListener('click', () => fileInput.click());
-
+  // НЕ відкриваємо файловий діалог по кліку на всю зону - це забирає фокус
+  // з div і ламає подальшу вставку через Ctrl+V. Клік на зону лише фокусує
+  // її (для paste), а явний вибір файлу - окрема кнопка всередині.
   ['dragenter', 'dragover'].forEach(eventName => {
     dropZone.addEventListener(eventName, (e) => {
       e.preventDefault();

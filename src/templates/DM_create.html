@@ -162,6 +162,11 @@
       font-size: 0.85rem;
       width: 100%;
     }
+    textarea {
+      resize: none;
+      overflow: hidden;
+      font-family: inherit;
+    }
     input:focus, textarea:focus {
       outline: none;
       border-color: var(--accent-gold);
@@ -182,6 +187,11 @@
       cursor: pointer;
       position: relative;
       transition: border-color 0.2s;
+    }
+    .image-dropzone:focus {
+      outline: none;
+      border-color: var(--accent-gold);
+      background-color: rgba(217, 119, 6, 0.05);
     }
     .image-dropzone.dragover { border-color: var(--accent-gold); background-color: rgba(217, 119, 6, 0.05); }
     .image-dropzone img { max-width: 100%; max-height: 200px; border-radius: 4px; object-fit: cover; margin-top: 6px; }
@@ -301,7 +311,7 @@
     }
     .enemy-row {
       display: grid;
-      grid-template-columns: 2fr 1.2fr 1fr 1.5fr auto;
+      grid-template-columns: 2fr 1.2fr 1fr 1.5fr 0.8fr auto;
       gap: 6px;
       align-items: center;
       background-color: var(--bg-element);
@@ -623,10 +633,12 @@
               <input type="number" value="${char.ac}" onchange="adventureData.characters[${index}].ac = +this.value">
             </div>
           </div>
-          <textarea rows="2" placeholder="Особиста ціль у цій пригоді..." onchange="adventureData.characters[${index}].goal = this.value">${char.goal || ''}</textarea>
+          <textarea rows="1" placeholder="Особиста ціль у цій пригоді..." class="auto-expand" onchange="adventureData.characters[${index}].goal = this.value">${char.goal || ''}</textarea>
         `;
         container.appendChild(card);
       });
+
+      setupAutoExpandTextareas();
     }
 
     function addCharacter() {
@@ -936,7 +948,7 @@
               <span><i class="fa-solid fa-grip-vertical drag-handle"></i> 📝 Текстовий Опис</span>
               <button onclick="removeBlock(${actIdx}, ${sceneIdxArg}, ${blockIdx})" class="btn btn-danger" style="padding: 1px 5px; font-size: 0.7rem;"><i class="fa-solid fa-trash"></i></button>
             </div>
-            <textarea rows="2" placeholder="Введіть текстовий опис..." onchange="${ref}.content = this.value">${block.content || ''}</textarea>
+            <textarea rows="1" placeholder="Введіть текстовий опис..." class="auto-expand" onchange="${ref}.content = this.value">${block.content || ''}</textarea>
           `;
         } else if (block.type === 'visual') {
           hasImage = block.imageUrl !== undefined && block.imageUrl !== null;
@@ -950,11 +962,12 @@
               <button onclick="removeBlock(${actIdx}, ${sceneIdxArg}, ${blockIdx})" class="btn btn-danger" style="padding: 1px 5px; font-size: 0.7rem;"><i class="fa-solid fa-trash"></i></button>
             </div>
             ${hasImage ? `
-              <div class="image-dropzone" id="${zoneId}" tabindex="0" onclick="triggerFileInput('${fileId}')" onpaste="handleImagePaste(event, (url) => { ${ref}.imageUrl = url; renderActs(); })">
-                <span class="dropzone-text"><i class="fa-solid fa-image"></i> Натисніть, вставте (Ctrl+V) або перетягніть файл зображення</span>
+              <div class="image-dropzone" id="${zoneId}" tabindex="0" onpaste="handleImagePaste(event, (url) => { ${ref}.imageUrl = url; renderActs(); })">
+                <span class="dropzone-text"><i class="fa-solid fa-image"></i> Клікніть тут і вставте (Ctrl+V) або перетягніть файл</span>
+                <button type="button" class="btn btn-dark upload-file-btn" style="font-size:0.7rem; margin-top:4px;" onclick="triggerFileInput('${fileId}')"><i class="fa-solid fa-folder-open"></i> Завантажити з ПК</button>
                 <input type="file" id="${fileId}" style="display:none" accept="image/*" onchange="handleFileSelect(event, (url) => { ${ref}.imageUrl = url; renderActs(); })">
-                <input type="text" placeholder="URL зображення..." value="${block.imageUrl || ''}" style="margin-top: 4px;" onclick="event.stopPropagation()" onchange="${ref}.imageUrl = this.value; renderActs();">
-                ${block.imageUrl ? `<img src="${block.imageUrl}" alt="Visual Description Image" onclick="event.stopPropagation(); openImageLightbox(this.src);" style="cursor: zoom-in;">` : ''}
+                <input type="text" placeholder="URL зображення..." value="${block.imageUrl || ''}" style="margin-top: 4px;" onchange="${ref}.imageUrl = this.value; renderActs();">
+                ${block.imageUrl ? `<img src="${block.imageUrl}" alt="Visual Description Image" onclick="openImageLightbox(this.src);" style="cursor: zoom-in;">` : ''}
               </div>
               <button onclick="delete ${ref}.imageUrl; renderActs();" class="btn btn-danger" style="font-size:0.7rem; align-self:flex-start;"><i class="fa-solid fa-trash"></i> Видалити зображення</button>
             ` : `
@@ -962,7 +975,7 @@
             `}
             ${hasCaption ? `
               <div class="item-row">
-                <input type="text" placeholder="Підпис / Коментар до артів..." value="${block.caption || ''}" onchange="${ref}.caption = this.value">
+                <textarea rows="1" placeholder="Підпис / Коментар до артів..." class="auto-expand" onchange="${ref}.caption = this.value">${block.caption || ''}</textarea>
                 <button onclick="delete ${ref}.caption; renderActs();" class="btn btn-danger" style="padding: 2px 6px;"><i class="fa-solid fa-trash"></i></button>
               </div>
             ` : `
@@ -990,9 +1003,13 @@
                   <span>⚔️</span>
                   <input type="text" value="${e.attack}" placeholder="Атака" onchange="${ref}.list[${enemyIdx}].attack = this.value">
                 </div>
+                <div class="enemy-input-group" title="Скільки однакових ворогів - у грі кожен матиме окреме HP">
+                  <span>×</span>
+                  <input type="number" value="${e.qty || 1}" min="1" placeholder="К-сть" onchange="${ref}.list[${enemyIdx}].qty = Math.max(1, +this.value || 1)">
+                </div>
                 <button onclick="removeEnemy(${actIdx}, ${sceneIdxArg}, ${blockIdx}, ${enemyIdx})" class="btn btn-danger" style="padding: 2px 4px;"><i class="fa-solid fa-trash"></i></button>
               </div>
-              <input type="text" value="${e.special || ''}" placeholder="🌟 Спецатака (необов'язково) - напр. 'Атакує двічі підряд' або 'Отруйна атака - 3 шкоди щохід'" class="enemy-special-input" onchange="${ref}.list[${enemyIdx}].special = this.value">
+              <textarea rows="1" placeholder="🌟 Спецатака (необов'язково) - напр. 'Атакує двічі підряд' або 'Отруйна атака - 3 шкоди щохід'" class="enemy-special-input auto-expand" onchange="${ref}.list[${enemyIdx}].special = this.value">${e.special || ''}</textarea>
             </div>
           `).join('');
 
@@ -1003,11 +1020,12 @@
             </div>
 
             ${hasImage ? `
-              <div class="image-dropzone" id="${zoneId}" tabindex="0" onclick="triggerFileInput('${fileId}')" onpaste="handleImagePaste(event, (url) => { ${ref}.imageUrl = url; renderActs(); })">
-                <span class="dropzone-text"><i class="fa-solid fa-image"></i> Фото/аватар для цієї групи ворогів (можна вставити Ctrl+V)</span>
+              <div class="image-dropzone" id="${zoneId}" tabindex="0" onpaste="handleImagePaste(event, (url) => { ${ref}.imageUrl = url; renderActs(); })">
+                <span class="dropzone-text"><i class="fa-solid fa-image"></i> Клікніть тут і вставте (Ctrl+V) або перетягніть файл</span>
+                <button type="button" class="btn btn-dark upload-file-btn" style="font-size:0.7rem; margin-top:4px;" onclick="triggerFileInput('${fileId}')"><i class="fa-solid fa-folder-open"></i> Завантажити з ПК</button>
                 <input type="file" id="${fileId}" style="display:none" accept="image/*" onchange="handleFileSelect(event, (url) => { ${ref}.imageUrl = url; renderActs(); })">
-                <input type="text" placeholder="URL зображення ворогів..." value="${block.imageUrl || ''}" style="margin-top: 4px;" onclick="event.stopPropagation()" onchange="${ref}.imageUrl = this.value; renderActs();">
-                ${block.imageUrl ? `<img src="${block.imageUrl}" alt="Enemy Group Image" onclick="event.stopPropagation(); openImageLightbox(this.src);" style="cursor: zoom-in;">` : ''}
+                <input type="text" placeholder="URL зображення ворогів..." value="${block.imageUrl || ''}" style="margin-top: 4px;" onchange="${ref}.imageUrl = this.value; renderActs();">
+                ${block.imageUrl ? `<img src="${block.imageUrl}" alt="Enemy Group Image" onclick="openImageLightbox(this.src);" style="cursor: zoom-in;">` : ''}
               </div>
               <button onclick="delete ${ref}.imageUrl; renderActs();" class="btn btn-danger" style="font-size:0.7rem; align-self:flex-start;"><i class="fa-solid fa-trash"></i> Видалити зображення</button>
             ` : `
@@ -1027,7 +1045,7 @@
                 <input type="number" value="${item.qty || 1}" min="1" class="inv-qty-input" onchange="${ref}.list[${itemIdx}].qty = parseInt(this.value) || 1">
                 <button onclick="removeItemRow(${actIdx}, ${sceneIdxArg}, ${blockIdx}, ${itemIdx})" class="btn btn-danger" style="padding: 2px 6px;"><i class="fa-solid fa-trash"></i></button>
               </div>
-              <input type="text" value="${item.desc || ''}" placeholder="Опис предмета (необов'язково)" class="inv-desc-input" onchange="${ref}.list[${itemIdx}].desc = this.value">
+              <textarea rows="1" placeholder="Опис предмета (необов'язково)" class="inv-desc-input auto-expand" onchange="${ref}.list[${itemIdx}].desc = this.value">${item.desc || ''}</textarea>
             </div>
           `).join('');
 
@@ -1058,13 +1076,14 @@
       });
 
       setupBlockContainerDrop(container);
+      setupAutoExpandTextareas();
     }
 
     // УПРАВЛІННЯ БЛОКАМИ (спільне для Актів і Сцен)
     function addBlock(actIdx, sceneIdx, type) {
       let newBlock = { id: 'b_' + Date.now() + Math.random().toString(36).slice(2, 6), type: type };
       if (type === 'description') newBlock.content = '';
-      if (type === 'enemies') newBlock.list = [{ name: 'Монстр', hp: 10, ac: 10, attack: '+2 (1d6)' }];
+      if (type === 'enemies') newBlock.list = [{ name: 'Монстр', hp: 10, ac: 10, attack: '+2 (1d6)', qty: 1 }];
       if (type === 'items') newBlock.list = [{ name: 'Новий предмет', qty: 1, desc: '' }];
       // Для 'visual' свідомо НЕ додаємо imageUrl/caption одразу -
       // вони опціональні і додаються окремими кнопками "+ Додати..."
@@ -1079,7 +1098,7 @@
     }
 
     function addEnemyRow(actIdx, sceneIdx, blockIdx) {
-      getBlocksArray(actIdx, sceneIdx)[blockIdx].list.push({ name: 'Монстр', hp: 10, ac: 10, attack: '+2 (1d6)' });
+      getBlocksArray(actIdx, sceneIdx)[blockIdx].list.push({ name: 'Монстр', hp: 10, ac: 10, attack: '+2 (1d6)', qty: 1 });
       renderActs();
     }
 
@@ -1103,6 +1122,21 @@
     // (не з base64) - решта коду блоків цього не бачить, інтерфейс той самий.
     function triggerFileInput(id) {
       document.getElementById(id).click();
+    }
+
+    // Базово один рядок, розширюється разом з текстом - застосовується
+    // до всіх .auto-expand textarea (опис предмета, спецатака, підпис тощо)
+    function setupAutoExpandTextareas() {
+      const textareas = document.querySelectorAll('.auto-expand');
+      textareas.forEach(textarea => {
+        textarea.style.height = 'auto';
+        textarea.style.height = (textarea.scrollHeight) + 'px';
+
+        textarea.addEventListener('input', function () {
+          this.style.height = 'auto';
+          this.style.height = (this.scrollHeight) + 'px';
+        });
+      });
     }
 
     function handleImagePaste(event, callback) {
