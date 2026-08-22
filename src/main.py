@@ -360,6 +360,115 @@ def message_to_dict(m: database_structure.SessionMessage) -> dict:
     }
 
 
+class EnemyTemplateSchema(BaseModel):
+    dm_id: Optional[int] = None  # None = загальний шаблон, доступний усім DM
+    name: str
+    hp: int = 10
+    ac: int = 10
+    attack: str = ""
+    special: str = ""
+
+
+class ItemTemplateSchema(BaseModel):
+    dm_id: Optional[int] = None
+    name: str
+    desc: str = ""
+    default_qty: int = 1
+
+
+def enemy_template_to_dict(t: database_structure.EnemyTemplate) -> dict:
+    data = json.loads(t.data_json or "{}")
+    return {
+        "id": t.id,
+        "dm_id": t.dm_id,
+        "name": t.name,
+        "hp": data.get("hp", 10),
+        "ac": data.get("ac", 10),
+        "attack": data.get("attack", ""),
+        "special": data.get("special", ""),
+    }
+
+
+def item_template_to_dict(t: database_structure.ItemTemplate) -> dict:
+    data = json.loads(t.data_json or "{}")
+    return {
+        "id": t.id,
+        "dm_id": t.dm_id,
+        "name": t.name,
+        "desc": data.get("desc", ""),
+        "default_qty": data.get("default_qty", 1),
+    }
+
+
+# =============================================================================
+# API: Бібліотека шаблонів (ворогів / предметів)
+# Вставка з бібліотеки в сценарій - це СНІМОК значень, а не жива посилка:
+# після додавання рядок можна вільно редагувати під конкретну сутичку без
+# впливу на сам шаблон чи на інші сценарії, де його вже використали.
+# =============================================================================
+@app.post("/api/enemy-templates", status_code=status.HTTP_201_CREATED)
+def create_enemy_template(data: EnemyTemplateSchema, db: Session = Depends(database.get_db)):
+    t = database_structure.EnemyTemplate(
+        dm_id=data.dm_id,
+        name=data.name,
+        data_json=json.dumps({"hp": data.hp, "ac": data.ac, "attack": data.attack, "special": data.special}),
+    )
+    db.add(t)
+    db.commit()
+    db.refresh(t)
+    return enemy_template_to_dict(t)
+
+
+@app.get("/api/dm/{dm_id}/enemy-templates")
+def get_enemy_templates(dm_id: int, db: Session = Depends(database.get_db)):
+    """Особисті шаблони цього DM + загальні (dm_id IS NULL)."""
+    templates = db.query(database_structure.EnemyTemplate).filter(
+        (database_structure.EnemyTemplate.dm_id == dm_id) | (database_structure.EnemyTemplate.dm_id.is_(None))
+    ).order_by(database_structure.EnemyTemplate.name.asc()).all()
+    return [enemy_template_to_dict(t) for t in templates]
+
+
+@app.delete("/api/enemy-templates/{template_id}")
+def delete_enemy_template(template_id: int, db: Session = Depends(database.get_db)):
+    t = db.query(database_structure.EnemyTemplate).get(template_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Шаблон не знайдено")
+    db.delete(t)
+    db.commit()
+    return {"message": "Шаблон видалено"}
+
+
+@app.post("/api/item-templates", status_code=status.HTTP_201_CREATED)
+def create_item_template(data: ItemTemplateSchema, db: Session = Depends(database.get_db)):
+    t = database_structure.ItemTemplate(
+        dm_id=data.dm_id,
+        name=data.name,
+        data_json=json.dumps({"desc": data.desc, "default_qty": data.default_qty}),
+    )
+    db.add(t)
+    db.commit()
+    db.refresh(t)
+    return item_template_to_dict(t)
+
+
+@app.get("/api/dm/{dm_id}/item-templates")
+def get_item_templates(dm_id: int, db: Session = Depends(database.get_db)):
+    templates = db.query(database_structure.ItemTemplate).filter(
+        (database_structure.ItemTemplate.dm_id == dm_id) | (database_structure.ItemTemplate.dm_id.is_(None))
+    ).order_by(database_structure.ItemTemplate.name.asc()).all()
+    return [item_template_to_dict(t) for t in templates]
+
+
+@app.delete("/api/item-templates/{template_id}")
+def delete_item_template(template_id: int, db: Session = Depends(database.get_db)):
+    t = db.query(database_structure.ItemTemplate).get(template_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Шаблон не знайдено")
+    db.delete(t)
+    db.commit()
+    return {"message": "Шаблон видалено"}
+
+
 # =============================================================================
 # API: Auth
 # =============================================================================
@@ -915,6 +1024,17 @@ if os.path.isdir(js_dir):
 @app.get("/")
 def read_root():
     return FileResponse(os.path.join(TEMPLATES_DIR, "Menu.html"))
+
+
+@app.get("/favicon.ico")
+def get_favicon():
+    """Окремий маршрут, а не покладання на StaticFiles - браузери самі
+    запитують /favicon.ico з кореня незалежно від <link>-тегів, а в цьому
+    застосунку змонтовані як статичні лише /css і /js."""
+    favicon_path = os.path("favicon-32x32.png")
+    if not os.path.exists(favicon_path):
+        raise HTTPException(status_code=404, detail="favicon-32x32.png not found")
+    return FileResponse(favicon_path)
 
 
 @app.get("/player_navigation")

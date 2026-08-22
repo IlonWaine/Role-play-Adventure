@@ -133,3 +133,27 @@ class SessionMessage(Base):
     image_url = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class EnemyTemplate(Base):
+    """Бібліотека ворогів для перевикористання між сценаріями. dm_id=NULL -
+    загальний шаблон (доступний усім DM), інакше - особистий шаблон DM."""
+    __tablename__ = "enemy_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    dm_id = Column(Integer, ForeignKey("dm_users.id"), nullable=True, index=True)
+    name = Column(String, nullable=False)
+    data_json = Column(Text, default="{}")  # {hp, ac, attack, special}
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ItemTemplate(Base):
+    """Бібліотека предметів для перевикористання між сценаріями. dm_id=NULL -
+    загальний шаблон (доступний усім DM), інакше - особистий шаблон DM."""
+    __tablename__ = "item_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    dm_id = Column(Integer, ForeignKey("dm_users.id"), nullable=True, index=True)
+    name = Column(String, nullable=False)
+    data_json = Column(Text, default="{}")  # {desc, default_qty}
+    created_at = Column(DateTime, default=datetime.utcnow)

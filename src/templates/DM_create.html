@@ -1007,6 +1007,7 @@
                   <span>×</span>
                   <input type="number" value="${e.qty || 1}" min="1" placeholder="К-сть" onchange="${ref}.list[${enemyIdx}].qty = Math.max(1, +this.value || 1)">
                 </div>
+                <button onclick="saveEnemyAsTemplate(${actIdx}, ${sceneIdxArg}, ${blockIdx}, ${enemyIdx})" class="btn btn-dark" style="padding: 2px 4px;" title="Зберегти як шаблон у бібліотеці"><i class="fa-solid fa-floppy-disk"></i></button>
                 <button onclick="removeEnemy(${actIdx}, ${sceneIdxArg}, ${blockIdx}, ${enemyIdx})" class="btn btn-danger" style="padding: 2px 4px;"><i class="fa-solid fa-trash"></i></button>
               </div>
               <textarea rows="1" placeholder="🌟 Спецатака (необов'язково) - напр. 'Атакує двічі підряд' або 'Отруйна атака - 3 шкоди щохід'" class="enemy-special-input auto-expand" onchange="${ref}.list[${enemyIdx}].special = this.value">${e.special || ''}</textarea>
@@ -1036,6 +1037,7 @@
               ${enemiesRows}
             </div>
             <button onclick="addEnemyRow(${actIdx}, ${sceneIdxArg}, ${blockIdx})" class="btn btn-outline" style="font-size:0.75rem; padding: 2px 6px; align-self: flex-start; margin-top:4px;">+ Додати ворога у групу</button>
+            <button onclick="openEnemyLibrary(${actIdx}, ${sceneIdxArg}, ${blockIdx})" class="btn btn-outline" style="font-size:0.75rem; padding: 2px 6px; align-self: flex-start; margin-top:4px;"><i class="fa-solid fa-book"></i> З бібліотеки</button>
           `;
         } else if (block.type === 'items') {
           let itemsRows = (block.list || []).map((item, itemIdx) => `
@@ -1043,6 +1045,7 @@
               <div class="inv-row-main">
                 <input type="text" value="${item.name}" placeholder="Назва предмета" onchange="${ref}.list[${itemIdx}].name = this.value">
                 <input type="number" value="${item.qty || 1}" min="1" class="inv-qty-input" onchange="${ref}.list[${itemIdx}].qty = parseInt(this.value) || 1">
+                <button onclick="saveItemAsTemplate(${actIdx}, ${sceneIdxArg}, ${blockIdx}, ${itemIdx})" class="btn btn-dark" style="padding: 2px 6px;" title="Зберегти як шаблон у бібліотеці"><i class="fa-solid fa-floppy-disk"></i></button>
                 <button onclick="removeItemRow(${actIdx}, ${sceneIdxArg}, ${blockIdx}, ${itemIdx})" class="btn btn-danger" style="padding: 2px 6px;"><i class="fa-solid fa-trash"></i></button>
               </div>
               <textarea rows="1" placeholder="Опис предмета (необов'язково)" class="inv-desc-input auto-expand" onchange="${ref}.list[${itemIdx}].desc = this.value">${item.desc || ''}</textarea>
@@ -1058,6 +1061,7 @@
               ${itemsRows}
             </div>
             <button onclick="addItemRow(${actIdx}, ${sceneIdxArg}, ${blockIdx})" class="btn btn-outline" style="font-size:0.75rem; padding: 2px 6px; align-self: flex-start; margin-top:4px;">+ Додати предмет</button>
+            <button onclick="openItemLibrary(${actIdx}, ${sceneIdxArg}, ${blockIdx})" class="btn btn-outline" style="font-size:0.75rem; padding: 2px 6px; align-self: flex-start; margin-top:4px;"><i class="fa-solid fa-book"></i> З бібліотеки</button>
           `;
         }
 
@@ -1080,6 +1084,192 @@
     }
 
     // УПРАВЛІННЯ БЛОКАМИ (спільне для Актів і Сцен)
+    // =========================================================================
+    // БІБЛІОТЕКА ШАБЛОНІВ (ворогів / предметів)
+    // Вставка з бібліотеки - це СНІМОК значень на момент вставки, а не жива
+    // посилка: подальше редагування рядка в сценарії ніяк не впливає на сам
+    // шаблон чи на інші сценарії, де його вже використали.
+    // =========================================================================
+    async function fetchEnemyTemplates() {
+      const dmId = localStorage.getItem('dm_id');
+      if (!dmId) return [];
+      try {
+        const res = await fetch(`/api/dm/${dmId}/enemy-templates`);
+        return res.ok ? await res.json() : [];
+      } catch (e) {
+        console.error(e);
+        return [];
+      }
+    }
+
+    async function fetchItemTemplates() {
+      const dmId = localStorage.getItem('dm_id');
+      if (!dmId) return [];
+      try {
+        const res = await fetch(`/api/dm/${dmId}/item-templates`);
+        return res.ok ? await res.json() : [];
+      } catch (e) {
+        console.error(e);
+        return [];
+      }
+    }
+
+    async function openEnemyLibrary(actIdx, sceneIdx, blockIdx) {
+      const templates = await fetchEnemyTemplates();
+      openLibraryModal('⚔️ Бібліотека ворогів', templates,
+        (t) => {
+          getBlocksArray(actIdx, sceneIdx)[blockIdx].list.push({
+            name: t.name, hp: t.hp, ac: t.ac, attack: t.attack, special: t.special || '', qty: 1
+          });
+          renderActs();
+        },
+        (t) => deleteEnemyTemplate(t.id)
+      );
+    }
+
+    async function openItemLibrary(actIdx, sceneIdx, blockIdx) {
+      const templates = await fetchItemTemplates();
+      openLibraryModal('🎁 Бібліотека предметів', templates,
+        (t) => {
+          getBlocksArray(actIdx, sceneIdx)[blockIdx].list.push({
+            name: t.name, qty: t.default_qty || 1, desc: t.desc || ''
+          });
+          renderActs();
+        },
+        (t) => deleteItemTemplate(t.id)
+      );
+    }
+
+    function openLibraryModal(title, templates, onPick, onDelete) {
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.innerHTML = `
+        <div class="modal-box">
+          <div class="modal-header">
+            <span>${title}</span>
+            <button class="btn-modal-close" id="closeLibModal">&times;</button>
+          </div>
+          <div class="modal-body" id="libModalBody"></div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+      overlay.querySelector('#closeLibModal').addEventListener('click', () => overlay.remove());
+
+      renderLibraryList(overlay.querySelector('#libModalBody'), templates, onPick, onDelete, overlay);
+    }
+
+    function renderLibraryList(body, templates, onPick, onDelete, overlay) {
+      if (templates.length === 0) {
+        body.innerHTML = `<p class="modal-empty">Бібліотека поки порожня. Збережіть щось як шаблон кнопкою 💾 біля рядка ворога чи предмета.</p>`;
+        return;
+      }
+
+      body.innerHTML = templates.map(t => `
+        <div class="modal-list-item" style="cursor: default;">
+          <span>${t.name}${t.dm_id === null ? ' <span class="modal-item-meta">(загальний)</span>' : ''}</span>
+          <div style="display:flex; gap:6px;">
+            <button type="button" class="btn btn-gold pick-btn" style="font-size:0.7rem; padding:2px 8px;">Додати</button>
+            <button type="button" class="btn btn-danger del-btn" style="font-size:0.7rem; padding:2px 8px;"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        </div>
+      `).join('');
+
+      body.querySelectorAll('.modal-list-item').forEach((row, i) => {
+        const t = templates[i];
+        row.querySelector('.pick-btn').addEventListener('click', () => {
+          onPick(t);
+          overlay.remove();
+        });
+        row.querySelector('.del-btn').addEventListener('click', async () => {
+          if (!confirm(`Видалити шаблон "${t.name}" з бібліотеки?`)) return;
+          await onDelete(t);
+          templates.splice(i, 1);
+          renderLibraryList(body, templates, onPick, onDelete, overlay);
+        });
+      });
+    }
+
+    async function saveEnemyAsTemplate(actIdx, sceneIdx, blockIdx, enemyIdx) {
+      const dmId = localStorage.getItem('dm_id');
+      if (!dmId) {
+        alert('Не вдалося визначити DM.');
+        return;
+      }
+      const enemy = getBlocksArray(actIdx, sceneIdx)[blockIdx].list[enemyIdx];
+      const name = prompt('Назва шаблону для бібліотеки:', enemy.name);
+      if (!name) return;
+
+      try {
+        const res = await fetch('/api/enemy-templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dm_id: parseInt(dmId),
+            name: name,
+            hp: enemy.hp, ac: enemy.ac, attack: enemy.attack, special: enemy.special || ''
+          })
+        });
+        if (res.ok) {
+          alert(`"${name}" збережено в бібліотеці ворогів.`);
+        } else {
+          alert('Помилка збереження шаблону.');
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Помилка з'єднання з сервером.");
+      }
+    }
+
+    async function saveItemAsTemplate(actIdx, sceneIdx, blockIdx, itemIdx) {
+      const dmId = localStorage.getItem('dm_id');
+      if (!dmId) {
+        alert('Не вдалося визначити DM.');
+        return;
+      }
+      const item = getBlocksArray(actIdx, sceneIdx)[blockIdx].list[itemIdx];
+      const name = prompt('Назва шаблону для бібліотеки:', item.name);
+      if (!name) return;
+
+      try {
+        const res = await fetch('/api/item-templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dm_id: parseInt(dmId),
+            name: name,
+            desc: item.desc || '',
+            default_qty: item.qty || 1
+          })
+        });
+        if (res.ok) {
+          alert(`"${name}" збережено в бібліотеці предметів.`);
+        } else {
+          alert('Помилка збереження шаблону.');
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Помилка з'єднання з сервером.");
+      }
+    }
+
+    async function deleteEnemyTemplate(id) {
+      try {
+        await fetch(`/api/enemy-templates/${id}`, { method: 'DELETE' });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function deleteItemTemplate(id) {
+      try {
+        await fetch(`/api/item-templates/${id}`, { method: 'DELETE' });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
     function addBlock(actIdx, sceneIdx, type) {
       let newBlock = { id: 'b_' + Date.now() + Math.random().toString(36).slice(2, 6), type: type };
       if (type === 'description') newBlock.content = '';
