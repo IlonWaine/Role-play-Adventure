@@ -1031,7 +1031,7 @@ def get_favicon():
     """Окремий маршрут, а не покладання на StaticFiles - браузери самі
     запитують /favicon.ico з кореня незалежно від <link>-тегів, а в цьому
     застосунку змонтовані як статичні лише /css і /js."""
-    favicon_path = os.path("favicon-32x32.png")
+    favicon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "favicon-32x32.png") 
     if not os.path.exists(favicon_path):
         raise HTTPException(status_code=404, detail="favicon-32x32.png not found")
     return FileResponse(favicon_path)
