@@ -189,9 +189,9 @@ function updateStatValue(index, val) {
    ============================================================================ */
 
 const ACTION_TYPES = {
-  full: { icon: '🔴', label: 'Повна дія' },
+  full: { icon: '🌕', label: 'Повна дія' },
   half: { icon: '🌓', label: 'Пів дії' },
-  passive: { icon: '⭕', label: 'Пасивна' }
+  passive: { icon: '🌑', label: 'Пасивна' }
 };
 
 function renderAbilitiesList() {
