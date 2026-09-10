@@ -368,6 +368,16 @@
       font-size: 0.8rem;
       color: var(--text-muted);
     }
+    .shop-price-row {
+      display: flex;
+      gap: 8px;
+    }
+    .shop-price-row .enemy-input-group {
+      flex: 1;
+    }
+    .shop-price-row input {
+      width: 100%;
+    }
 
     .add-block-actions {
       display: flex;
@@ -809,6 +819,7 @@
             <button onclick="addBlock(${actIdx}, null, 'visual')" class="btn btn-dark" style="font-size: 0.75rem;">+ Візуальний Опис</button>
             <button onclick="addBlock(${actIdx}, null, 'enemies')" class="btn btn-dark" style="font-size: 0.75rem;">+ Вороги</button>
             <button onclick="addBlock(${actIdx}, null, 'items')" class="btn btn-dark" style="font-size: 0.75rem;">+ Предмети</button>
+            <button onclick="addBlock(${actIdx}, null, 'shop')" class="btn btn-dark" style="font-size: 0.75rem;">+ Магазин</button>
           </div>
 
           <div class="scenes-container" data-act-index="${actIdx}"></div>
@@ -872,6 +883,7 @@
             <button onclick="addBlock(${actIdx}, ${sceneIdx}, 'visual')" class="btn btn-dark" style="font-size: 0.75rem;">+ Візуальний Опис</button>
             <button onclick="addBlock(${actIdx}, ${sceneIdx}, 'enemies')" class="btn btn-dark" style="font-size: 0.75rem;">+ Вороги</button>
             <button onclick="addBlock(${actIdx}, ${sceneIdx}, 'items')" class="btn btn-dark" style="font-size: 0.75rem;">+ Предмети</button>
+            <button onclick="addBlock(${actIdx}, ${sceneIdx}, 'shop')" class="btn btn-dark" style="font-size: 0.75rem;">+ Магазин</button>
           </div>
         `;
 
@@ -1045,6 +1057,7 @@
               <div class="inv-row-main">
                 <input type="text" value="${item.name}" placeholder="Назва предмета" onchange="${ref}.list[${itemIdx}].name = this.value">
                 <input type="number" value="${item.qty || 1}" min="1" class="inv-qty-input" onchange="${ref}.list[${itemIdx}].qty = parseInt(this.value) || 1">
+                <button onclick="copyItemToShop(${actIdx}, ${sceneIdxArg}, ${blockIdx}, ${itemIdx})" class="btn btn-dark" style="padding: 2px 6px;" title="Додати в магазин цього акту/сцени"><i class="fa-solid fa-cart-shopping"></i></button>
                 <button onclick="saveItemAsTemplate(${actIdx}, ${sceneIdxArg}, ${blockIdx}, ${itemIdx})" class="btn btn-dark" style="padding: 2px 6px;" title="Зберегти як шаблон у бібліотеці"><i class="fa-solid fa-floppy-disk"></i></button>
                 <button onclick="removeItemRow(${actIdx}, ${sceneIdxArg}, ${blockIdx}, ${itemIdx})" class="btn btn-danger" style="padding: 2px 6px;"><i class="fa-solid fa-trash"></i></button>
               </div>
@@ -1062,6 +1075,40 @@
             </div>
             <button onclick="addItemRow(${actIdx}, ${sceneIdxArg}, ${blockIdx})" class="btn btn-outline" style="font-size:0.75rem; padding: 2px 6px; align-self: flex-start; margin-top:4px;">+ Додати предмет</button>
             <button onclick="openItemLibrary(${actIdx}, ${sceneIdxArg}, ${blockIdx})" class="btn btn-outline" style="font-size:0.75rem; padding: 2px 6px; align-self: flex-start; margin-top:4px;"><i class="fa-solid fa-book"></i> З бібліотеки</button>
+          `;
+        } else if (block.type === 'shop') {
+          const shopItems = (block.list || []).map(i => ({
+            name: i.name || '',
+            desc: i.desc || '',
+            price: { gp: i.price?.gp || 0, sp: i.price?.sp || 0, cp: i.price?.cp || 0 }
+          }));
+          block.list = shopItems; // нормалізуємо на місці, щоб подальші правки писались у правильну структуру
+
+          let shopRows = shopItems.map((item, itemIdx) => `
+            <div class="item-row-full">
+              <div class="inv-row-main">
+                <input type="text" value="${item.name}" placeholder="Назва товару" onchange="${ref}.list[${itemIdx}].name = this.value">
+                <button onclick="removeShopItem(${actIdx}, ${sceneIdxArg}, ${blockIdx}, ${itemIdx})" class="btn btn-danger" style="padding: 2px 6px;"><i class="fa-solid fa-trash"></i></button>
+              </div>
+              <textarea rows="1" placeholder="Опис товару (необов'язково)" class="inv-desc-input auto-expand" onchange="${ref}.list[${itemIdx}].desc = this.value">${item.desc || ''}</textarea>
+              <div class="shop-price-row">
+                <div class="enemy-input-group"><span>🟡</span><input type="number" value="${item.price.gp}" min="0" onchange="${ref}.list[${itemIdx}].price.gp = Math.max(0, +this.value || 0)"></div>
+                <div class="enemy-input-group"><span>⚪</span><input type="number" value="${item.price.sp}" min="0" onchange="${ref}.list[${itemIdx}].price.sp = Math.max(0, +this.value || 0)"></div>
+                <div class="enemy-input-group"><span>🟤</span><input type="number" value="${item.price.cp}" min="0" onchange="${ref}.list[${itemIdx}].price.cp = Math.max(0, +this.value || 0)"></div>
+              </div>
+            </div>
+          `).join('');
+
+          contentHtml = `
+            <div class="scene-block-header">
+              <span><i class="fa-solid fa-grip-vertical drag-handle"></i> 🛒 Магазин</span>
+              <button onclick="removeBlock(${actIdx}, ${sceneIdxArg}, ${blockIdx})" class="btn btn-danger" style="padding: 1px 5px; font-size: 0.7rem;"><i class="fa-solid fa-trash"></i></button>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              ${shopRows}
+            </div>
+            <button onclick="addShopItem(${actIdx}, ${sceneIdxArg}, ${blockIdx})" class="btn btn-outline" style="font-size:0.75rem; padding: 2px 6px; align-self: flex-start; margin-top:4px;">+ Додати товар</button>
+            <button onclick="openShopLibrary(${actIdx}, ${sceneIdxArg}, ${blockIdx})" class="btn btn-outline" style="font-size:0.75rem; padding: 2px 6px; align-self: flex-start; margin-top:4px;"><i class="fa-solid fa-book"></i> З бібліотеки</button>
           `;
         }
 
@@ -1275,6 +1322,7 @@
       if (type === 'description') newBlock.content = '';
       if (type === 'enemies') newBlock.list = [{ name: 'Монстр', hp: 10, ac: 10, attack: '+2 (1d6)', qty: 1 }];
       if (type === 'items') newBlock.list = [{ name: 'Новий предмет', qty: 1, desc: '' }];
+      if (type === 'shop') newBlock.list = [];
       // Для 'visual' свідомо НЕ додаємо imageUrl/caption одразу -
       // вони опціональні і додаються окремими кнопками "+ Додати..."
 
@@ -1299,6 +1347,48 @@
 
     function addItemRow(actIdx, sceneIdx, blockIdx) {
       getBlocksArray(actIdx, sceneIdx)[blockIdx].list.push({ name: 'Новий предмет', qty: 1, desc: '' });
+      renderActs();
+    }
+
+    // --- МАГАЗИН ---
+    function addShopItem(actIdx, sceneIdx, blockIdx) {
+      getBlocksArray(actIdx, sceneIdx)[blockIdx].list.push({
+        name: 'Новий товар', desc: '', price: { gp: 0, sp: 0, cp: 0 }
+      });
+      renderActs();
+    }
+
+    function removeShopItem(actIdx, sceneIdx, blockIdx, itemIdx) {
+      getBlocksArray(actIdx, sceneIdx)[blockIdx].list.splice(itemIdx, 1);
+      renderActs();
+    }
+
+    async function openShopLibrary(actIdx, sceneIdx, blockIdx) {
+      const templates = await fetchItemTemplates();
+      openLibraryModal('🎁 Бібліотека предметів', templates,
+        (t) => {
+          getBlocksArray(actIdx, sceneIdx)[blockIdx].list.push({
+            name: t.name, desc: t.desc || '', price: { gp: 0, sp: 0, cp: 0 }
+          });
+          renderActs();
+        },
+        (t) => deleteItemTemplate(t.id)
+      );
+    }
+
+    // "Перетягнути" наявний предмет у магазин - реалізовано кнопкою, а не
+    // нативним drag&drop між різними блоками: досвід з dm_live показав, що
+    // HTML5 drag&drop ненадійний на сенсорних екранах, тож для редактора
+    // теж обрано надійніший варіант.
+    function copyItemToShop(actIdx, sceneIdx, itemBlockIdx, itemIdx) {
+      const blocks = getBlocksArray(actIdx, sceneIdx);
+      const item = blocks[itemBlockIdx].list[itemIdx];
+      const shopBlock = blocks.find(b => b.type === 'shop');
+      if (!shopBlock) {
+        alert('У цьому акті/сцені ще немає блоку "Магазин". Спочатку додайте його кнопкою "+ Магазин" вище.');
+        return;
+      }
+      shopBlock.list.push({ name: item.name, desc: item.desc || '', price: { gp: 0, sp: 0, cp: 0 } });
       renderActs();
     }
 

@@ -743,3 +743,22 @@ body {
   border-radius: 8px;
   box-shadow: 0 10px 40px rgba(0,0,0,0.6);
 }
+
+/* Таблиця асортименту магазину, коли DM ділиться нею в чаті */
+.shop-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+  margin-top: 4px;
+}
+
+.shop-table th, .shop-table td {
+  border: 1px solid var(--border-color);
+  padding: 4px 6px;
+  text-align: left;
+}
+
+.shop-table th {
+  background-color: rgba(243, 198, 73, 0.15);
+  color: var(--accent-gold);
+}

@@ -4,9 +4,9 @@
 // =============================================================================
 
 const ACTION_TYPES = {
-  full: { icon: '🌕', label: 'Повна дія' },
+  full: { icon: '🔴', label: 'Повна дія' },
   half: { icon: '🌓', label: 'Пів дії' },
-  passive: { icon: '🌑', label: 'Пасивна' }
+  passive: { icon: '⭕', label: 'Пасивна' }
 };
 
 let sessionId = null;
@@ -122,13 +122,17 @@ async function refreshCharacterData() {
 }
 
 function renderCharacter() {
-  document.getElementById('char-name').value = charData.name || '';
-  document.getElementById('char-name').addEventListener('input', (e) => {
+  const nameInput = document.getElementById('char-name');
+  nameInput.value = charData.name || '';
+  nameInput.addEventListener('input', (e) => {
     charData.name = e.target.value;
     saveCharacter();
+    fitInputTextSize(nameInput);
   });
+  fitInputTextSize(nameInput);
 
   document.getElementById('char-title').value = `Кімната: ${sessionData.room_code} · ${sessionData.story_title}`;
+  fitInputTextSize(document.getElementById('char-title'), 0.65, 0.95);
 
   document.getElementById('max-hp').innerText = charData.max_hp;
   document.getElementById('current-hp').innerText = currentHP;
@@ -152,6 +156,19 @@ function renderCharacter() {
 
   updateHealthBar();
   updateCoinsUI();
+}
+
+// Поле імені (як і будь-який <input>) не може переноситись на новий рядок,
+// на відміну від textarea - тому довге ім'я на вузькому телефонному екрані
+// просто обрізається. Замість фіксованого шрифту динамічно зменшуємо його,
+// поки текст не влізе повністю.
+function fitInputTextSize(input, minRem = 0.95, maxRem = 1.8) {
+  let size = maxRem;
+  input.style.fontSize = size + 'rem';
+  while (input.scrollWidth > input.clientWidth && size > minRem) {
+    size -= 0.05;
+    input.style.fontSize = size.toFixed(2) + 'rem';
+  }
 }
 
 function findMyGoal() {
@@ -549,6 +566,14 @@ function openImageLightbox(url) {
   overlay.addEventListener('click', () => overlay.remove());
   document.body.appendChild(overlay);
 }
+
+// Перерахунок розміру шрифту при повороті телефону/зміні розміру вікна
+window.addEventListener('resize', () => {
+  const nameInput = document.getElementById('char-name');
+  const titleInput = document.getElementById('char-title');
+  if (nameInput) fitInputTextSize(nameInput);
+  if (titleInput) fitInputTextSize(titleInput, 0.65, 0.95);
+});
 
 // Ініціалізація
 init();

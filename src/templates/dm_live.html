@@ -246,6 +246,61 @@
       box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.4);
     }
 
+    /* МАГАЗИН */
+    .shop-items-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .shop-item-card {
+      background-color: var(--bg-element);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 140px;
+    }
+    .shop-price-edit-row {
+      display: flex;
+      gap: 4px;
+    }
+    .shop-price-input-group {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      font-size: 0.7rem;
+    }
+    .shop-price-input {
+      width: 38px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      border-radius: 4px;
+      padding: 2px 4px;
+      font-size: 0.7rem;
+      text-align: center;
+    }
+
+    /* Таблиця асортименту, коли ділимось у чаті */
+    .shop-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.72rem;
+      margin-top: 4px;
+    }
+    .shop-table th, .shop-table td {
+      border: 1px solid var(--border-color);
+      padding: 4px 6px;
+      text-align: left;
+    }
+    .shop-table th {
+      background-color: rgba(217, 119, 6, 0.15);
+      color: var(--accent-gold);
+    }
+
     /* ЧАТ */
     .chat-sidebar {
       position: fixed;

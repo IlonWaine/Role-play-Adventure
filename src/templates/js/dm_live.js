@@ -9,7 +9,9 @@ let chatMessages = [];
 let lastMessageId = 0;
 let isFirstMessageLoad = true;
 let draggedItem = null;
+let draggedItemIsShop = false;
 let selectedItemForGiving = null; // тап-альтернатива drag&drop для мобільних
+let selectedItemIsShop = false;
 let ws = null;
 
 async function init() {
@@ -178,6 +180,19 @@ function renderActs() {
       actCard.appendChild(addItemsBlockBtn);
     }
 
+    if (!act.blocks.some(b => b.type === 'shop')) {
+      const addShopBlockBtn = document.createElement('button');
+      addShopBlockBtn.type = 'button';
+      addShopBlockBtn.className = 'btn btn-dark';
+      addShopBlockBtn.style.cssText = 'font-size:0.7rem; align-self:flex-start; margin-left:6px;';
+      addShopBlockBtn.innerHTML = '<i class="fa-solid fa-cart-shopping"></i> Створити магазин';
+      addShopBlockBtn.addEventListener('click', () => {
+        act.blocks.push({ id: 'adhoc_' + Date.now(), type: 'shop', list: [] });
+        renderActs();
+      });
+      actCard.appendChild(addShopBlockBtn);
+    }
+
     (act.scenes || []).forEach(scene => {
       const sceneCard = document.createElement('div');
       sceneCard.className = 'scene-card';
@@ -208,6 +223,19 @@ function renderActs() {
           renderActs();
         });
         sceneCard.appendChild(addItemsBlockBtn);
+      }
+
+      if (!scene.blocks.some(b => b.type === 'shop')) {
+        const addShopBlockBtn = document.createElement('button');
+        addShopBlockBtn.type = 'button';
+        addShopBlockBtn.className = 'btn btn-dark';
+        addShopBlockBtn.style.cssText = 'font-size:0.7rem; align-self:flex-start; margin-top:6px; margin-left:6px;';
+        addShopBlockBtn.innerHTML = '<i class="fa-solid fa-cart-shopping"></i> Створити магазин';
+        addShopBlockBtn.addEventListener('click', () => {
+          scene.blocks.push({ id: 'adhoc_' + Date.now(), type: 'shop', list: [] });
+          renderActs();
+        });
+        sceneCard.appendChild(addShopBlockBtn);
       }
 
       actCard.appendChild(sceneCard);
@@ -324,6 +352,67 @@ function renderBlocksReadonly(blocks, container) {
           renderActs();
         });
       });
+    } else if (block.type === 'shop') {
+      const shopItems = (block.list || []).map(i => ({
+        name: i.name || '',
+        desc: i.desc || '',
+        price: { gp: i.price?.gp || 0, sp: i.price?.sp || 0, cp: i.price?.cp || 0 }
+      }));
+      block.list = shopItems;
+
+      const cards = shopItems.map((item, idx) => `
+        <div class="shop-item-card">
+          <div class="item-chip shop-chip" draggable="true">🛍️ ${item.name}</div>
+          <div class="shop-price-edit-row" title="Ціна редагована - можна торгуватись">
+            <div class="shop-price-input-group"><span>🟡</span><input type="number" min="0" value="${item.price.gp}" class="shop-price-input" data-item-idx="${idx}" data-coin="gp"></div>
+            <div class="shop-price-input-group"><span>⚪</span><input type="number" min="0" value="${item.price.sp}" class="shop-price-input" data-item-idx="${idx}" data-coin="sp"></div>
+            <div class="shop-price-input-group"><span>🟤</span><input type="number" min="0" value="${item.price.cp}" class="shop-price-input" data-item-idx="${idx}" data-coin="cp"></div>
+          </div>
+        </div>
+      `).join('');
+
+      el.innerHTML = `
+        <div class="scene-block-header">🛒 Магазин</div>
+        <div class="shop-items-row">${cards}</div>
+        <button type="button" class="btn btn-outline share-shop-btn" style="font-size:0.7rem; margin-top:6px;">
+          <i class="fa-solid fa-share"></i> Поділитись асортиментом у чаті
+        </button>
+      `;
+
+      el.querySelectorAll('.shop-chip').forEach((chip, i) => {
+        const item = shopItems[i];
+        chip.addEventListener('dragstart', () => {
+          draggedItem = item;
+          draggedItemIsShop = true;
+          chip.classList.add('dragging');
+        });
+        chip.addEventListener('dragend', () => chip.classList.remove('dragging'));
+
+        chip.addEventListener('click', () => {
+          if (selectedItemForGiving === item) {
+            clearItemSelection();
+          } else {
+            clearItemSelection();
+            selectedItemForGiving = item;
+            selectedItemIsShop = true;
+            chip.classList.add('selected');
+          }
+        });
+      });
+
+      // Ціна редагована прямо тут - зручно, якщо гравці торгуються за товар.
+      // Зміна впливає лише на ЦЮ живу сесію (в пам'яті вкладки), шаблон
+      // товару в самій історії не змінюється - наступного разу ціна знову
+      // буде базовою.
+      el.querySelectorAll('.shop-price-input').forEach(input => {
+        input.addEventListener('change', () => {
+          const idx = parseInt(input.dataset.itemIdx);
+          const coin = input.dataset.coin;
+          shopItems[idx].price[coin] = Math.max(0, parseInt(input.value) || 0);
+        });
+      });
+
+      el.querySelector('.share-shop-btn').addEventListener('click', () => shareShopToChat(shopItems));
     }
 
     container.appendChild(el);
@@ -390,7 +479,7 @@ async function updateEnemyHp(blockId, instanceKey, value) {
   }
 }
 
-// --- ПЕРЕДАЧА ПРЕДМЕТІВ DRAG & DROP ---
+// --- ПЕРЕДАЧА / ПРОДАЖ ПРЕДМЕТІВ DRAG & DROP ---
 function setupItemDropZone(el) {
   el.addEventListener('dragover', (e) => {
     if (draggedItem === null) return;
@@ -403,8 +492,13 @@ function setupItemDropZone(el) {
     el.classList.remove('drag-over');
     if (draggedItem === null) return;
     const targetCharId = parseInt(el.dataset.charId);
-    giveItemToCharacter(targetCharId, draggedItem);
+    if (draggedItemIsShop) {
+      buyItemForCharacter(targetCharId, draggedItem);
+    } else {
+      giveItemToCharacter(targetCharId, draggedItem);
+    }
     draggedItem = null;
+    draggedItemIsShop = false;
   });
 
   // Тап-альтернатива для мобільних: спочатку торкнутись предмета
@@ -412,13 +506,18 @@ function setupItemDropZone(el) {
   el.addEventListener('click', () => {
     if (selectedItemForGiving === null) return;
     const targetCharId = parseInt(el.dataset.charId);
-    giveItemToCharacter(targetCharId, selectedItemForGiving);
+    if (selectedItemIsShop) {
+      buyItemForCharacter(targetCharId, selectedItemForGiving);
+    } else {
+      giveItemToCharacter(targetCharId, selectedItemForGiving);
+    }
     clearItemSelection();
   });
 }
 
 function clearItemSelection() {
   selectedItemForGiving = null;
+  selectedItemIsShop = false;
   document.querySelectorAll('.item-chip.selected').forEach(c => c.classList.remove('selected'));
 }
 
@@ -461,6 +560,103 @@ async function giveItemToCharacter(targetCharId, item) {
   } finally {
     isGivingItem = false;
   }
+}
+
+// --- МАГАЗИН: КУПІВЛЯ З АВТОКОНВЕРТАЦІЄЮ МОНЕТ ---
+// 1 gp = 10 sp = 100 cp. Все переводиться в мідні для порівняння й
+// віднімання, потім переводиться назад у канонічний вигляд (максимум
+// золотих, потім срібних, решта мідними). Це автоматично "розмінює"
+// цінніші монети, коли конкретного номіналу не вистачає -
+// напр. ціна 9sp, а срібних лише 4 (плюс 1gp) -> 1gp стає 10sp,
+// разом 14sp, 14-9=5sp лишається.
+function toCopper(gp, sp, cp) {
+  return (gp || 0) * 100 + (sp || 0) * 10 + (cp || 0);
+}
+
+function fromCopper(totalCp) {
+  const gp = Math.floor(totalCp / 100);
+  totalCp -= gp * 100;
+  const sp = Math.floor(totalCp / 10);
+  const cp = totalCp - sp * 10;
+  return { gp, sp, cp };
+}
+
+function formatPrice(price) {
+  const parts = [];
+  if (price.gp) parts.push(`${price.gp}🟡`);
+  if (price.sp) parts.push(`${price.sp}⚪`);
+  if (price.cp) parts.push(`${price.cp}🟤`);
+  return parts.length ? parts.join(' ') : 'безкоштовно';
+}
+
+let isBuyingItem = false;
+
+async function buyItemForCharacter(targetCharId, shopItem) {
+  if (isBuyingItem) return;
+  isBuyingItem = true;
+
+  try {
+    const participant = sessionData.participants.find(p => p.id === targetCharId);
+    if (!participant) return;
+
+    const priceCp = toCopper(shopItem.price.gp, shopItem.price.sp, shopItem.price.cp);
+    const currentCp = toCopper(participant.gp, participant.sp, participant.cp);
+
+    if (currentCp < priceCp) {
+      alert(`У ${participant.name} недостатньо грошей на "${shopItem.name}" (потрібно ${formatPrice(shopItem.price)}, є лише ${formatPrice(fromCopper(currentCp))}).`);
+      return;
+    }
+
+    const newCoins = fromCopper(currentCp - priceCp);
+    const newInventory = [
+      ...(participant.inventory || []),
+      { name: shopItem.name, qty: 1, desc: shopItem.desc || '' }
+    ];
+
+    const res = await fetch(`/api/characters/${targetCharId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gp: newCoins.gp, sp: newCoins.sp, cp: newCoins.cp, inventory: newInventory })
+    });
+
+    if (res.ok) {
+      const updated = await res.json();
+      participant.inventory = updated.inventory;
+      participant.gp = updated.gp;
+      participant.sp = updated.sp;
+      participant.cp = updated.cp;
+      renderParticipants();
+      await sendDmChatMessage('all', null, `🛍️ ${participant.name} придбав(-ла) "${shopItem.name}" за ${formatPrice(shopItem.price)}.`);
+    } else {
+      alert('Помилка покупки.');
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Помилка з'єднання з сервером.");
+  } finally {
+    isBuyingItem = false;
+  }
+}
+
+function shareShopToChat(shopItems) {
+  if (shopItems.length === 0) {
+    alert('У цьому магазині ще немає товарів.');
+    return;
+  }
+  const rows = shopItems.map(item => `
+    <tr>
+      <td>${item.name}</td>
+      <td>${item.desc || '—'}</td>
+      <td>${formatPrice(item.price)}</td>
+    </tr>
+  `).join('');
+  const tableHtml = `
+    <table class="shop-table">
+      <thead><tr><th>Товар</th><th>Опис</th><th>Ціна</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+  sendDmChatMessage('all', null, tableHtml);
 }
 
 // --- ЧАТ ---
