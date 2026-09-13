@@ -210,6 +210,8 @@ class InventoryItem(BaseModel):
     name: str = ""
     qty: int = 1
     desc: str = ""
+    max_stack: int = 1     # скільки штук влазить в один слот інвентарю
+    extra_slots: int = 0   # +N до максимальної місткості інвентарю, поки предмет у власності (напр. сумка)
 
 
 class CharacterUpdateSchema(BaseModel):
@@ -250,6 +252,49 @@ def character_to_dict(c: database_structure.Character) -> dict:
         "backstory": c.backstory,
         "portrait_data": c.portrait_data,
     }
+
+
+# =============================================================================
+# Стакування предметів та місткість інвентарю - та сама логіка, що й
+# client-side у dm_live.js (для видачі/купівлі від DM). Тут - Python-порт
+# для обміну предметами між гравцями (trade_item), який робиться на бекенді.
+# =============================================================================
+def compute_effective_max_slots(inventory: list, base_max_slots: int) -> int:
+    bonus = sum(i.get("extra_slots", 0) or 0 for i in inventory if (i.get("qty", 0) or 0) > 0)
+    return (base_max_slots or 0) + bonus
+
+
+def add_item_with_stacking(inventory: list, new_item: dict):
+    """Повертає (новий_інвентар, скільки_нових_слотів_знадобилось).
+    НЕ мутує вхідний список - виклик спершу перевіряє ліміт слотів."""
+    max_stack = max(1, new_item.get("max_stack", 1) or 1)
+    remaining = new_item.get("qty", 1) or 1
+    result = [dict(i) for i in inventory]
+
+    for entry in result:
+        if remaining <= 0:
+            break
+        entry_max_stack = entry.get("max_stack", 1) or 1
+        if entry.get("name") == new_item.get("name") and entry_max_stack == max_stack and (entry.get("qty", 0) or 0) < max_stack:
+            add = min(max_stack - entry["qty"], remaining)
+            entry["qty"] = entry.get("qty", 0) + add
+            remaining -= add
+
+    slots_needed = 0
+    new_entries = []
+    while remaining > 0:
+        qty = min(max_stack, remaining)
+        new_entries.append({
+            "name": new_item.get("name"),
+            "qty": qty,
+            "desc": new_item.get("desc", ""),
+            "max_stack": max_stack,
+            "extra_slots": new_item.get("extra_slots", 0) or 0,
+        })
+        remaining -= qty
+        slots_needed += 1
+
+    return result + new_entries, slots_needed
 
 
 class StoryCreateSchema(BaseModel):
@@ -374,6 +419,11 @@ class ItemTemplateSchema(BaseModel):
     name: str
     desc: str = ""
     default_qty: int = 1
+    price_gp: int = 0
+    price_sp: int = 0
+    price_cp: int = 0
+    max_stack: int = 1
+    extra_slots: int = 0
 
 
 def enemy_template_to_dict(t: database_structure.EnemyTemplate) -> dict:
@@ -397,6 +447,11 @@ def item_template_to_dict(t: database_structure.ItemTemplate) -> dict:
         "name": t.name,
         "desc": data.get("desc", ""),
         "default_qty": data.get("default_qty", 1),
+        "price_gp": data.get("price_gp", 0),
+        "price_sp": data.get("price_sp", 0),
+        "price_cp": data.get("price_cp", 0),
+        "max_stack": data.get("max_stack", 1),
+        "extra_slots": data.get("extra_slots", 0),
     }
 
 
@@ -443,7 +498,15 @@ def create_item_template(data: ItemTemplateSchema, db: Session = Depends(databas
     t = database_structure.ItemTemplate(
         dm_id=data.dm_id,
         name=data.name,
-        data_json=json.dumps({"desc": data.desc, "default_qty": data.default_qty}),
+        data_json=json.dumps({
+            "desc": data.desc,
+            "default_qty": data.default_qty,
+            "price_gp": data.price_gp,
+            "price_sp": data.price_sp,
+            "price_cp": data.price_cp,
+            "max_stack": data.max_stack,
+            "extra_slots": data.extra_slots,
+        }),
     )
     db.add(t)
     db.commit()
@@ -911,7 +974,10 @@ def run_vacuum(db: Session = Depends(database.get_db)):
 
 @app.post("/api/sessions/{session_id}/trade")
 async def trade_item(session_id: int, data: TradeItemSchema, db: Session = Depends(database.get_db)):
-    """Передача одного предмета з інвентарю одного персонажа іншому."""
+    """Передача одного предмета з інвентарю одного персонажа іншому - з тим
+    самим стакуванням і перевіркою вільних слотів отримувача, що й при
+    видачі/купівлі від DM. Слоти перевіряються ДО видалення предмета у
+    відправника, щоб при відмові ніхто нічого не втратив."""
     session = db.query(database_structure.LiveSession).get(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Сесію не знайдено")
@@ -925,12 +991,24 @@ async def trade_item(session_id: int, data: TradeItemSchema, db: Session = Depen
     if data.item_index < 0 or data.item_index >= len(from_inventory):
         raise HTTPException(status_code=400, detail="Невірний індекс предмета")
 
-    item = from_inventory.pop(data.item_index)
+    item = from_inventory[data.item_index]
+
     to_inventory = json.loads(to_char.inventory_json or "[]")
-    to_inventory.append(item)
+    effective_max_slots = compute_effective_max_slots(to_inventory, to_char.max_slots)
+    used_slots = len(to_inventory)
+
+    new_to_inventory, slots_needed = add_item_with_stacking(to_inventory, item)
+
+    if used_slots + slots_needed > effective_max_slots:
+        raise HTTPException(
+            status_code=400,
+            detail=f"У отримувача недостатньо вільних слотів інвентарю (потрібно ще {slots_needed}, вільно {max(0, effective_max_slots - used_slots)}).",
+        )
+
+    from_inventory.pop(data.item_index)
 
     from_char.inventory_json = json.dumps(from_inventory)
-    to_char.inventory_json = json.dumps(to_inventory)
+    to_char.inventory_json = json.dumps(new_to_inventory)
     db.commit()
 
     await manager.broadcast(session_id, "inventory")
@@ -1031,9 +1109,9 @@ def get_favicon():
     """Окремий маршрут, а не покладання на StaticFiles - браузери самі
     запитують /favicon.ico з кореня незалежно від <link>-тегів, а в цьому
     застосунку змонтовані як статичні лише /css і /js."""
-    favicon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "favicon-32x32.png") 
+    favicon_path = os.path.join(TEMPLATES_DIR, "favicon.ico")
     if not os.path.exists(favicon_path):
-        raise HTTPException(status_code=404, detail="favicon-32x32.png not found")
+        raise HTTPException(status_code=404, detail="favicon.ico not found")
     return FileResponse(favicon_path)
 
 

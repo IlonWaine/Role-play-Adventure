@@ -429,6 +429,17 @@ function openAddItemModal(onConfirm) {
       <input type="text" id="newItemName" placeholder="Назва предмета" style="background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main); padding:6px 8px;">
       <input type="number" id="newItemQty" value="1" min="1" placeholder="Кількість" style="background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main); padding:6px 8px;">
       <input type="text" id="newItemDesc" placeholder="Опис (необов'язково)" style="background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main); padding:6px 8px;">
+      <button type="button" id="toggleAdvancedAdd" class="btn btn-dark" style="font-size:0.7rem;">⚙️ Додаткові параметри</button>
+      <div id="advancedAddFields" style="display:none; flex-direction:column; gap:6px; border-top:1px dashed var(--border-color); padding-top:8px;">
+        <label style="font-size:0.75rem; color:var(--text-muted);">
+          Макс. стак у слоті (за замовч. 1):
+          <input type="number" id="newItemMaxStack" value="1" min="1" style="background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main); padding:4px 6px; width:100%;">
+        </label>
+        <label style="font-size:0.75rem; color:var(--text-muted);">
+          Додаткові слоти інвентарю (напр. сумка):
+          <input type="number" id="newItemExtraSlots" value="0" min="0" style="background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main); padding:4px 6px; width:100%;">
+        </label>
+      </div>
       <div style="display:flex; gap:8px; margin-top:4px;">
         <button type="button" id="cancelAddItem" class="btn btn-dark" style="flex:1;">Скасувати</button>
         <button type="button" id="confirmAddItem" class="btn btn-gold" style="flex:1;">Додати</button>
@@ -439,6 +450,10 @@ function openAddItemModal(onConfirm) {
 
   overlay.addEventListener('click', () => overlay.remove());
   overlay.querySelector('#cancelAddItem').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#toggleAdvancedAdd').addEventListener('click', () => {
+    const fields = overlay.querySelector('#advancedAddFields');
+    fields.style.display = fields.style.display === 'none' ? 'flex' : 'none';
+  });
   overlay.querySelector('#confirmAddItem').addEventListener('click', () => {
     const name = overlay.querySelector('#newItemName').value.trim();
     if (!name) {
@@ -447,8 +462,10 @@ function openAddItemModal(onConfirm) {
     }
     const qty = parseInt(overlay.querySelector('#newItemQty').value) || 1;
     const desc = overlay.querySelector('#newItemDesc').value.trim();
+    const maxStack = Math.max(1, parseInt(overlay.querySelector('#newItemMaxStack').value) || 1);
+    const extraSlots = Math.max(0, parseInt(overlay.querySelector('#newItemExtraSlots').value) || 0);
     overlay.remove();
-    onConfirm({ name, qty, desc });
+    onConfirm({ name, qty, desc, max_stack: maxStack, extra_slots: extraSlots });
   });
 
   overlay.querySelector('#newItemName').focus();
@@ -521,6 +538,56 @@ function clearItemSelection() {
   document.querySelectorAll('.item-chip.selected').forEach(c => c.classList.remove('selected'));
 }
 
+// =============================================================================
+// СТАКУВАННЯ ПРЕДМЕТІВ ТА МІСТКІСТЬ ІНВЕНТАРЮ
+// =============================================================================
+// Ефективна місткість = базові max_slots персонажа + сума extra_slots з усіх
+// предметів, які він зараз реально тримає (qty > 0) - напр. сумка +5.
+function computeEffectiveMaxSlots(inventory, baseMaxSlots) {
+  const bonus = (inventory || []).reduce((sum, i) => {
+    return sum + (i.qty > 0 ? (i.extra_slots || 0) : 0);
+  }, 0);
+  return (baseMaxSlots || 0) + bonus;
+}
+
+// Спочатку заповнює вже наявні неповні стаки цього предмета до max_stack,
+// залишок розкладає по нових слотах (по max_stack штук, останній - залишком).
+// НЕ мутує вхідний масив і НЕ перевіряє ліміт слотів - лише рахує, скільки
+// нових слотів знадобиться, щоб виклик міг спершу перевірити й заблокувати
+// передачу, якщо вільних слотів немає.
+function addItemWithStacking(inventory, newItem) {
+  const maxStack = Math.max(1, newItem.max_stack || 1);
+  let remaining = newItem.qty || 1;
+  const result = (inventory || []).map(i => ({ ...i }));
+
+  for (const entry of result) {
+    if (remaining <= 0) break;
+    const entryMaxStack = entry.max_stack || 1;
+    if (entry.name === newItem.name && entryMaxStack === maxStack && entry.qty < maxStack) {
+      const add = Math.min(maxStack - entry.qty, remaining);
+      entry.qty += add;
+      remaining -= add;
+    }
+  }
+
+  let slotsNeeded = 0;
+  const newEntries = [];
+  while (remaining > 0) {
+    const qty = Math.min(maxStack, remaining);
+    newEntries.push({
+      name: newItem.name,
+      qty,
+      desc: newItem.desc || '',
+      max_stack: maxStack,
+      extra_slots: newItem.extra_slots || 0
+    });
+    remaining -= qty;
+    slotsNeeded++;
+  }
+
+  return { inventory: result.concat(newEntries), slotsNeeded };
+}
+
 let isGivingItem = false;
 
 async function giveItemToCharacter(targetCharId, item) {
@@ -534,13 +601,27 @@ async function giveItemToCharacter(targetCharId, item) {
     const participant = sessionData.participants.find(p => p.id === targetCharId);
     if (!participant) return;
 
+    const currentInventory = participant.inventory || [];
+    const effectiveMaxSlots = computeEffectiveMaxSlots(currentInventory, participant.max_slots);
+    const usedSlots = currentInventory.length;
+
+    const normalizedItem = {
+      name: item.name,
+      qty: item.qty || 1,
+      desc: item.desc || '',
+      max_stack: Math.max(1, item.max_stack || 1),
+      extra_slots: item.extra_slots || 0
+    };
+
+    const { inventory: newInventory, slotsNeeded } = addItemWithStacking(currentInventory, normalizedItem);
+
+    if (usedSlots + slotsNeeded > effectiveMaxSlots) {
+      alert(`У ${participant.name} недостатньо вільних слотів інвентарю для "${item.name}" (потрібно ще ${slotsNeeded}, вільно ${Math.max(0, effectiveMaxSlots - usedSlots)}).`);
+      return;
+    }
+
     // Копія предмета, а не сам об'єкт з блоку сценарію - дарування персонажу
     // не повинно змінювати шаблон "Предмети" в самій історії.
-    const newInventory = [
-      ...(participant.inventory || []),
-      { name: item.name, qty: item.qty || 1, desc: item.desc || '' }
-    ];
-
     const res = await fetch(`/api/characters/${targetCharId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -607,11 +688,26 @@ async function buyItemForCharacter(targetCharId, shopItem) {
       return;
     }
 
+    const currentInventory = participant.inventory || [];
+    const effectiveMaxSlots = computeEffectiveMaxSlots(currentInventory, participant.max_slots);
+    const usedSlots = currentInventory.length;
+
+    const normalizedItem = {
+      name: shopItem.name,
+      qty: 1,
+      desc: shopItem.desc || '',
+      max_stack: Math.max(1, shopItem.max_stack || 1),
+      extra_slots: shopItem.extra_slots || 0
+    };
+
+    const { inventory: newInventory, slotsNeeded } = addItemWithStacking(currentInventory, normalizedItem);
+
+    if (usedSlots + slotsNeeded > effectiveMaxSlots) {
+      alert(`У ${participant.name} недостатньо вільних слотів інвентарю для покупки "${shopItem.name}".`);
+      return;
+    }
+
     const newCoins = fromCopper(currentCp - priceCp);
-    const newInventory = [
-      ...(participant.inventory || []),
-      { name: shopItem.name, qty: 1, desc: shopItem.desc || '' }
-    ];
 
     const res = await fetch(`/api/characters/${targetCharId}`, {
       method: 'PUT',
@@ -656,7 +752,8 @@ function shareShopToChat(shopItems) {
       <tbody>${rows}</tbody>
     </table>
   `;
-  sendDmChatMessage('all', null, tableHtml);
+  const { recipient_type, recipient_id } = getSelectedChatRecipient();
+  sendDmChatMessage(recipient_type, recipient_id, tableHtml);
 }
 
 // --- ЧАТ ---
@@ -668,6 +765,17 @@ function setupChatRecipientOptions() {
     opt.textContent = `🧝 ${p.name} (шепіт)`;
     select.appendChild(opt);
   });
+
+  select.addEventListener('change', updateShareTargetLabel);
+  updateShareTargetLabel();
+}
+
+function updateShareTargetLabel() {
+  const label = document.getElementById('shareTargetLabel');
+  const select = document.getElementById('chatRecipient');
+  if (!label || !select) return;
+  const selectedText = select.options[select.selectedIndex]?.text || 'Усі';
+  label.textContent = `→ ${selectedText}`;
 }
 
 function toggleChat() {
@@ -798,9 +906,22 @@ async function sendDmMessage(e) {
   input.value = '';
 }
 
+// Той самий вибір одержувача, що і для звичайних повідомлень чату -
+// щоб "Поділитись" не завжди йшло всім, а поважало поточний вибір DM
+// (Усі / конкретний гравець) у селекторі чату.
+function getSelectedChatRecipient() {
+  const select = document.getElementById('chatRecipient');
+  const val = select ? select.value : 'all';
+  if (val.startsWith('character:')) {
+    return { recipient_type: 'character', recipient_id: parseInt(val.split(':')[1]) };
+  }
+  return { recipient_type: 'all', recipient_id: null };
+}
+
 function shareImageToChat(url) {
   if (!url) return;
-  sendDmChatMessage('all', null, '', 'image', url);
+  const { recipient_type, recipient_id } = getSelectedChatRecipient();
+  sendDmChatMessage(recipient_type, recipient_id, '', 'image', url);
 }
 
 async function endSession() {

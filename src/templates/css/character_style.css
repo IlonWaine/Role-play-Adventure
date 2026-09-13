@@ -348,11 +348,13 @@ body {
   color: var(--text-muted);
   margin-bottom: 4px;
   white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 .ability-desc {
   font-size: 0.9rem;
   white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 /* ІНВЕНТАР */
@@ -413,6 +415,7 @@ body {
   font-size: 0.78rem;
   color: var(--text-muted);
   white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 .item-actions {
@@ -550,6 +553,7 @@ body {
   border-radius: 6px;
   border: 1px solid var(--border-color);
   line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 .portrait-img {

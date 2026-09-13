@@ -400,7 +400,8 @@
         <div style="font-size:0.75rem; color: var(--text-muted);">Код кімнати: <span id="roomCodeDisplay" style="font-family:monospace; font-weight:bold; color: var(--accent-gold);"></span></div>
       </div>
     </div>
-    <div style="display:flex; gap:8px;">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span id="shareTargetLabel" style="font-size:0.7rem; color: var(--text-muted); white-space:nowrap;" title="Куди зараз піде 'Поділитись' - міняється тим самим списком, що й у чаті">→ Усі</span>
       <button onclick="toggleChat()" class="btn btn-dark">
         <i class="fa-solid fa-comments"></i> Чат <span id="unreadBadge" style="display:none; color:#ef4444;">●</span>
       </button>

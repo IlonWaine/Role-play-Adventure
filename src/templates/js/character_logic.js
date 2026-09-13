@@ -4,9 +4,9 @@
 // =============================================================================
 
 const ACTION_TYPES = {
-  full: { icon: '🔴', label: 'Повна дія' },
+  full: { icon: '🌕', label: 'Повна дія' },
   half: { icon: '🌓', label: 'Пів дії' },
-  passive: { icon: '⭕', label: 'Пасивна' }
+  passive: { icon: '🌑', label: 'Пасивна' }
 };
 
 let sessionId = null;
@@ -193,6 +193,15 @@ function renderAbilities() {
   }).join('');
 }
 
+// Та сама формула, що й у dm_live.js: базова місткість + сума extra_slots
+// з усіх предметів, які персонаж зараз реально тримає (qty > 0) - напр. сумка +5.
+function computeEffectiveMaxSlots(inventory, baseMaxSlots) {
+  const bonus = (inventory || []).reduce((sum, i) => {
+    return sum + (i.qty > 0 ? (i.extra_slots || 0) : 0);
+  }, 0);
+  return (baseMaxSlots || 0) + bonus;
+}
+
 function renderInventory() {
   const invList = document.getElementById('inventory-list');
   invList.innerHTML = (charData.inventory || []).map((item, idx) => {
@@ -217,7 +226,8 @@ function renderInventory() {
   `;
   }).join('');
 
-  document.getElementById('slot-count').innerText = `Слоти: ${(charData.inventory || []).length} / ${charData.max_slots}`;
+  const effectiveMaxSlots = computeEffectiveMaxSlots(charData.inventory, charData.max_slots);
+  document.getElementById('slot-count').innerText = `Слоти: ${(charData.inventory || []).length} / ${effectiveMaxSlots}`;
 }
 
 // --- HP ---
