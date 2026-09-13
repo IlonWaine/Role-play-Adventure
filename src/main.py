@@ -212,6 +212,9 @@ class InventoryItem(BaseModel):
     desc: str = ""
     max_stack: int = 1     # скільки штук влазить в один слот інвентарю
     extra_slots: int = 0   # +N до максимальної місткості інвентарю, поки предмет у власності (напр. сумка)
+    price_gp: int = 0      # довідкова ціна предмета - бачить лише DM, у картці гравця не показується
+    price_sp: int = 0
+    price_cp: int = 0
 
 
 class CharacterUpdateSchema(BaseModel):
@@ -290,6 +293,9 @@ def add_item_with_stacking(inventory: list, new_item: dict):
             "desc": new_item.get("desc", ""),
             "max_stack": max_stack,
             "extra_slots": new_item.get("extra_slots", 0) or 0,
+            "price_gp": new_item.get("price_gp", 0) or 0,
+            "price_sp": new_item.get("price_sp", 0) or 0,
+            "price_cp": new_item.get("price_cp", 0) or 0,
         })
         remaining -= qty
         slots_needed += 1

@@ -246,6 +246,24 @@ function renderInventoryList() {
         <button type="button" class="btn-remove" onclick="removeInventoryRow(${idx})">🗑️</button>
       </div>
       <textarea placeholder="Опис предмета..." class="inv-desc-input auto-expand" rows="1" oninput="dmData.inventory[${idx}].desc = this.value">${item.desc || ''}</textarea>
+      <div class="inv-dm-only-row" title="Видно лише DM - у картці гравця ці поля не показуються">
+        <div class="inv-dm-field">
+          <label>📦 Стак</label>
+          <input type="number" min="1" value="${item.max_stack ?? 1}" class="inv-stack-input" oninput="dmData.inventory[${idx}].max_stack = Math.max(1, parseInt(this.value) || 1)">
+        </div>
+        <div class="inv-dm-field">
+          <label>➕ Слотів</label>
+          <input type="number" min="0" value="${item.extra_slots ?? 0}" class="inv-stack-input" oninput="dmData.inventory[${idx}].extra_slots = Math.max(0, parseInt(this.value) || 0)">
+        </div>
+        <div class="inv-dm-field inv-dm-price-field">
+          <label>Ціна (довідково)</label>
+          <div class="inv-price-row">
+            <div class="inv-price-input-group"><span>🟡</span><input type="number" min="0" value="${item.price_gp ?? 0}" class="inv-price-input" oninput="dmData.inventory[${idx}].price_gp = Math.max(0, parseInt(this.value) || 0)"></div>
+            <div class="inv-price-input-group"><span>⚪</span><input type="number" min="0" value="${item.price_sp ?? 0}" class="inv-price-input" oninput="dmData.inventory[${idx}].price_sp = Math.max(0, parseInt(this.value) || 0)"></div>
+            <div class="inv-price-input-group"><span>🟤</span><input type="number" min="0" value="${item.price_cp ?? 0}" class="inv-price-input" oninput="dmData.inventory[${idx}].price_cp = Math.max(0, parseInt(this.value) || 0)"></div>
+          </div>
+        </div>
+      </div>
     </div>
   `).join('');
 
@@ -253,7 +271,11 @@ function renderInventoryList() {
 }
 
 function addInventoryRow() {
-  dmData.inventory.push({ name: '', qty: 1, desc: '' });
+  dmData.inventory.push({
+    name: '', qty: 1, desc: '',
+    max_stack: 1, extra_slots: 0,
+    price_gp: 0, price_sp: 0, price_cp: 0
+  });
   renderInventoryList();
 }
 

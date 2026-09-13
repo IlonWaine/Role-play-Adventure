@@ -432,6 +432,70 @@ body {
   padding: 2px;
 }
 
+/* Поля видно лише DM в редакторі персонажа - у гравця на character_UI ці
+   значення взагалі не рендеряться (там показуються тільки name/qty/desc). */
+.inv-dm-only-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+  background: var(--card-bg);
+  border: 1px dashed var(--border-color);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.inv-dm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inv-dm-field label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.inv-stack-input {
+  width: 55px;
+  background: var(--card-inner-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-main);
+  text-align: center;
+  font-size: 0.8rem;
+  padding: 3px;
+  outline: none;
+}
+
+.inv-dm-price-field { flex: 1; min-width: 140px; }
+
+.inv-price-row {
+  display: flex;
+  gap: 6px;
+}
+
+.inv-price-input-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.75rem;
+}
+
+.inv-price-input {
+  width: 40px;
+  background: var(--card-inner-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-main);
+  text-align: center;
+  font-size: 0.8rem;
+  padding: 3px;
+  outline: none;
+}
+
 .dm-textarea, .ability-desc-input, .ability-principle-input, .inv-desc-input {
   background: var(--card-bg);
   border: 1px solid var(--border-color);
@@ -524,9 +588,12 @@ body {
 }
 
 .portrait-img-preview {
-  width: 180px;
-  height: 270px; /* 1024x1536 в масштабі */
-  object-fit: cover;
+  width: 100%;
+  max-width: 220px;
+  height: auto;
+  aspect-ratio: 2 / 3; /* пропорція 1024x1536, масштабується під будь-який екран */
+  object-fit: contain; /* показує все зображення цілком, без обрізання країв */
+  background: var(--card-inner-bg);
   border-radius: 6px;
   border: 2px solid var(--border-accent);
 }

@@ -534,7 +534,11 @@ body {
 .collapsible-content {
   overflow: hidden;
   transition: max-height 0.3s ease, opacity 0.3s ease;
-  max-height: 500px;
+  /* Запасне значення на випадок, якщо JS ще не встиг виставити точну
+     висоту (character_logic.js -> syncCollapsibleHeight). Достатньо велике,
+     щоб не обрізати довгу передісторію чи високий портрет ні на ПК, ні на
+     смартфоні; точну висоту JS одразу підганяє під реальний вміст. */
+  max-height: 4000px;
   opacity: 1;
 }
 

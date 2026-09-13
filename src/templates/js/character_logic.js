@@ -152,10 +152,20 @@ function renderCharacter() {
   renderInventory();
 
   document.getElementById('backstory-text').innerText = charData.backstory || '';
-  document.getElementById('portrait-img').src = charData.portrait_data || '';
+
+  const portraitImg = document.getElementById('portrait-img');
+  // Реальна висота картинки відома лише після її фактичного довантаження -
+  // до того момента scrollHeight блоку буде занижений і портрет обріжеться.
+  portraitImg.onload = syncAllCollapsibleHeights;
+  portraitImg.onerror = syncAllCollapsibleHeights;
+  portraitImg.src = charData.portrait_data || '';
 
   updateHealthBar();
   updateCoinsUI();
+
+  // Одразу підганяємо висоту під текст передісторії (і під портрет,
+  // якщо зображення вже було в кеші браузера й onload не спрацює повторно).
+  syncAllCollapsibleHeights();
 }
 
 // Поле імені (як і будь-який <input>) не може переноситись на новий рядок,
@@ -389,6 +399,27 @@ function changeItemQty(index, delta) {
 
 function toggleBlock(headerElement) {
   headerElement.classList.toggle('collapsed');
+  syncCollapsibleHeight(headerElement);
+}
+
+// Підганяє висоту блоку (передісторія, портрет) під реальний вміст,
+// а не під фіксоване число з CSS - інакше довгий текст або високе
+// зображення портрета просто обрізались рамкою блоку на будь-якому екрані.
+// Викликається при розгортанні/згортанні, першому рендері персонажа,
+// довантаженні зображення портрета та зміні розміру вікна/повороті екрана.
+function syncCollapsibleHeight(headerElement) {
+  const content = headerElement.nextElementSibling;
+  if (!content || !content.classList.contains('collapsible-content')) return;
+
+  if (headerElement.classList.contains('collapsed')) {
+    content.style.maxHeight = '0px';
+  } else {
+    content.style.maxHeight = content.scrollHeight + 'px';
+  }
+}
+
+function syncAllCollapsibleHeights() {
+  document.querySelectorAll('.collapsible-header').forEach(syncCollapsibleHeight);
 }
 
 // --- ЧАТ ---
@@ -583,6 +614,10 @@ window.addEventListener('resize', () => {
   const titleInput = document.getElementById('char-title');
   if (nameInput) fitInputTextSize(nameInput);
   if (titleInput) fitInputTextSize(titleInput, 0.65, 0.95);
+  // Ширина екрана змінилась (в т.ч. поворот телефону) -> текст передісторії
+  // переноситься інакше, а портрет масштабується під нову ширину, тому
+  // висота блоків теж має перерахуватись, інакше вміст знову обріжеться.
+  syncAllCollapsibleHeights();
 });
 
 // Ініціалізація
