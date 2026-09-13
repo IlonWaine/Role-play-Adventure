@@ -246,6 +246,90 @@
       box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.4);
     }
 
+    /* Інлайн-картка предмета в блоці "Предмети / Лут" (жива сесія) - усі
+       поля, включно з прихованими від гравця (стак/слоти/ціна), редагуються
+       прямо тут, без спливаючих вікон. */
+    .item-row-full-live {
+      background-color: var(--bg-element);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .item-row-main-live {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .item-give-handle {
+      cursor: grab;
+      font-size: 1rem;
+      padding: 3px 7px;
+      border-radius: 6px;
+      border: 1px dashed var(--accent-gold);
+      user-select: none;
+      flex: none;
+    }
+    .item-give-handle.selected,
+    .item-give-handle.dragging {
+      background-color: var(--accent-gold);
+    }
+    .item-name-input-live, .item-qty-input-live {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      border-radius: 4px;
+      padding: 4px 6px;
+      font-size: 0.8rem;
+    }
+    .item-name-input-live { flex: 1; min-width: 0; }
+    .item-qty-input-live { width: 55px; flex: none; }
+    .item-desc-input-live {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      border-radius: 4px;
+      padding: 4px 6px;
+      font-size: 0.75rem;
+      resize: vertical;
+      min-height: 28px;
+    }
+    .item-dm-meta-row-live {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 8px;
+      align-items: center;
+      border-top: 1px dashed var(--border-color);
+      padding-top: 6px;
+    }
+    .item-dm-meta-label-live {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .item-stack-input-live {
+      width: 42px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      border-radius: 4px;
+      padding: 3px;
+      font-size: 0.72rem;
+      text-align: center;
+    }
+    .item-btn-remove-live {
+      background: transparent;
+      border: none;
+      color: #ef4444;
+      cursor: pointer;
+      font-size: 0.9rem;
+      padding: 2px 4px;
+      flex: none;
+    }
+
     /* МАГАЗИН */
     .shop-items-row {
       display: flex;
@@ -266,6 +350,28 @@
     .shop-price-edit-row {
       display: flex;
       gap: 4px;
+    }
+    .shop-stack-row {
+      display: flex;
+      gap: 4px;
+      padding-top: 2px;
+      border-top: 1px dashed var(--border-color);
+    }
+    .shop-stack-input-group {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      font-size: 0.7rem;
+    }
+    .shop-stack-input {
+      width: 38px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      border-radius: 4px;
+      padding: 2px 4px;
+      font-size: 0.7rem;
+      text-align: center;
     }
     .shop-price-input-group {
       display: flex;

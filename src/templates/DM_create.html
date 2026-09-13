@@ -379,6 +379,31 @@
       width: 100%;
     }
 
+    /* Рядок з параметрами предмета, видимими лише DM (стак / бонусні
+       слоти / довідкова ціна) - завжди інлайн у картці предмета, без
+       спливаючих вікон. Гравцю ці значення ніде не показуються. */
+    .item-dm-meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 10px;
+      align-items: center;
+      border-top: 1px dashed var(--border-color);
+      padding-top: 6px;
+      margin-top: 2px;
+    }
+    .item-dm-meta-label {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .item-stack-input {
+      width: 46px;
+      padding: 4px;
+      font-size: 0.75rem;
+    }
+    .item-dm-meta-row .enemy-input-group { flex: none; }
+
     .add-block-actions {
       display: flex;
       flex-wrap: wrap;
@@ -1055,6 +1080,15 @@
             <button onclick="openEnemyLibrary(${actIdx}, ${sceneIdxArg}, ${blockIdx})" class="btn btn-outline" style="font-size:0.75rem; padding: 2px 6px; align-self: flex-start; margin-top:4px;"><i class="fa-solid fa-book"></i> З бібліотеки</button>
           `;
         } else if (block.type === 'items') {
+          // Гарантуємо наявність усіх прихованих від гравця полів прямо на
+          // самому предметі (а не лише в шаблоні) - і рендеримо їх інлайн
+          // у картці предмета, без спливаючих вікон.
+          (block.list || []).forEach(item => {
+            if (!item.price) item.price = { gp: 0, sp: 0, cp: 0 };
+            if (item.max_stack === undefined) item.max_stack = 1;
+            if (item.extra_slots === undefined) item.extra_slots = 0;
+          });
+
           let itemsRows = (block.list || []).map((item, itemIdx) => `
             <div class="item-row-full">
               <div class="inv-row-main">
@@ -1065,6 +1099,16 @@
                 <button onclick="removeItemRow(${actIdx}, ${sceneIdxArg}, ${blockIdx}, ${itemIdx})" class="btn btn-danger" style="padding: 2px 6px;"><i class="fa-solid fa-trash"></i></button>
               </div>
               <textarea rows="1" placeholder="Опис предмета (необов'язково)" class="inv-desc-input auto-expand" onchange="${ref}.list[${itemIdx}].desc = this.value">${item.desc || ''}</textarea>
+              <div class="item-dm-meta-row" title="Видно лише DM - гравцю в картці персонажа не показується">
+                <span class="item-dm-meta-label">📦 Стак</span>
+                <input type="number" min="1" value="${item.max_stack}" class="item-stack-input" onchange="${ref}.list[${itemIdx}].max_stack = Math.max(1, parseInt(this.value) || 1)">
+                <span class="item-dm-meta-label">➕ Слотів</span>
+                <input type="number" min="0" value="${item.extra_slots}" class="item-stack-input" onchange="${ref}.list[${itemIdx}].extra_slots = Math.max(0, parseInt(this.value) || 0)">
+                <span class="item-dm-meta-label">Ціна (про запас для Магазину)</span>
+                <div class="enemy-input-group"><span>🟡</span><input type="number" min="0" value="${item.price.gp}" class="item-stack-input" onchange="${ref}.list[${itemIdx}].price.gp = Math.max(0, parseInt(this.value) || 0)"></div>
+                <div class="enemy-input-group"><span>⚪</span><input type="number" min="0" value="${item.price.sp}" class="item-stack-input" onchange="${ref}.list[${itemIdx}].price.sp = Math.max(0, parseInt(this.value) || 0)"></div>
+                <div class="enemy-input-group"><span>🟤</span><input type="number" min="0" value="${item.price.cp}" class="item-stack-input" onchange="${ref}.list[${itemIdx}].price.cp = Math.max(0, parseInt(this.value) || 0)"></div>
+              </div>
             </div>
           `).join('');
 
@@ -1100,6 +1144,12 @@
                 <div class="enemy-input-group"><span>🟡</span><input type="number" value="${item.price.gp}" min="0" onchange="${ref}.list[${itemIdx}].price.gp = Math.max(0, +this.value || 0)"></div>
                 <div class="enemy-input-group"><span>⚪</span><input type="number" value="${item.price.sp}" min="0" onchange="${ref}.list[${itemIdx}].price.sp = Math.max(0, +this.value || 0)"></div>
                 <div class="enemy-input-group"><span>🟤</span><input type="number" value="${item.price.cp}" min="0" onchange="${ref}.list[${itemIdx}].price.cp = Math.max(0, +this.value || 0)"></div>
+              </div>
+              <div class="item-dm-meta-row" title="Видно лише DM - гравцю в картці персонажа не показується">
+                <span class="item-dm-meta-label">📦 Стак</span>
+                <input type="number" min="1" value="${item.max_stack}" class="item-stack-input" onchange="${ref}.list[${itemIdx}].max_stack = Math.max(1, parseInt(this.value) || 1)">
+                <span class="item-dm-meta-label">➕ Слотів</span>
+                <input type="number" min="0" value="${item.extra_slots}" class="item-stack-input" onchange="${ref}.list[${itemIdx}].extra_slots = Math.max(0, parseInt(this.value) || 0)">
               </div>
             </div>
           `).join('');
@@ -1289,25 +1339,31 @@
         return;
       }
       const item = getBlocksArray(actIdx, sceneIdx)[blockIdx].list[itemIdx];
-      openSaveTemplateModal(item, async (result) => {
+      const name = prompt('Назва шаблону для бібліотеки:', item.name);
+      if (!name) return;
+
+      // Стак / слоти / ціна беруться напряму з інлайн-полів предмета
+      // (заповнюються прямо в картці предмета) - окремого запиту більше
+      // не потрібно.
+      (async () => {
         try {
           const res = await fetch('/api/item-templates', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               dm_id: parseInt(dmId),
-              name: result.name,
+              name: name,
               desc: item.desc || '',
               default_qty: item.qty || 1,
-              price_gp: result.price.gp,
-              price_sp: result.price.sp,
-              price_cp: result.price.cp,
-              max_stack: result.maxStack,
-              extra_slots: result.extraSlots
+              price_gp: item.price?.gp || 0,
+              price_sp: item.price?.sp || 0,
+              price_cp: item.price?.cp || 0,
+              max_stack: item.max_stack || 1,
+              extra_slots: item.extra_slots || 0
             })
           });
           if (res.ok) {
-            alert(`"${result.name}" збережено в бібліотеці предметів.`);
+            alert(`"${name}" збережено в бібліотеці предметів.`);
           } else {
             alert('Помилка збереження шаблону.');
           }
@@ -1315,70 +1371,7 @@
           console.error(err);
           alert("Помилка з'єднання з сервером.");
         }
-      });
-    }
-
-    // Ціна за замовчуванням - опціональне поле шаблону. НЕ впливає на сам
-    // предмет у блоці "Предмети" (там і надалі ніде не показується й не
-    // передається гравцю) - використовується лише як підказка, коли цей
-    // шаблон пізніше додають у блок "Магазин".
-    function openSaveTemplateModal(item, onConfirm) {
-      const overlay = document.createElement('div');
-      overlay.className = 'lightbox-overlay';
-      overlay.style.cursor = 'default';
-      overlay.innerHTML = `
-        <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:10px; padding:16px; width:100%; max-width:320px; display:flex; flex-direction:column; gap:8px;" onclick="event.stopPropagation()">
-          <div style="font-weight:700; color:var(--accent-gold);">💾 Зберегти як шаблон</div>
-          <input type="text" id="tplName" value="${item.name}" placeholder="Назва шаблону" style="background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main); padding:6px 8px;">
-          <div style="font-size:0.75rem; color:var(--text-muted);">Ціна за замовчуванням (необов'язково - підтягнеться, коли додасте цей шаблон у Магазин):</div>
-          <div class="shop-price-row">
-            <div class="enemy-input-group"><span>🟡</span><input type="number" id="tplPriceGp" value="0" min="0"></div>
-            <div class="enemy-input-group"><span>⚪</span><input type="number" id="tplPriceSp" value="0" min="0"></div>
-            <div class="enemy-input-group"><span>🟤</span><input type="number" id="tplPriceCp" value="0" min="0"></div>
-          </div>
-          <button type="button" id="toggleAdvancedTpl" class="btn btn-dark" style="font-size:0.7rem;">⚙️ Додаткові параметри</button>
-          <div id="advancedTplFields" class="hidden" style="display:none; flex-direction:column; gap:6px; border-top:1px dashed var(--border-color); padding-top:8px;">
-            <label style="font-size:0.75rem; color:var(--text-muted);">
-              Макс. стак у слоті (за замовч. 1) - гравець цього числа не бачить, просто відкриється новий слот, коли поточний заповниться:
-              <input type="number" id="tplMaxStack" value="1" min="1">
-            </label>
-            <label style="font-size:0.75rem; color:var(--text-muted);">
-              Додаткові слоти інвентарю (напр. сумка +5) - поки предмет у гравця, його загальна місткість збільшується:
-              <input type="number" id="tplExtraSlots" value="0" min="0">
-            </label>
-          </div>
-          <div style="display:flex; gap:8px; margin-top:4px;">
-            <button type="button" id="cancelTpl" class="btn btn-dark" style="flex:1;">Скасувати</button>
-            <button type="button" id="confirmTpl" class="btn btn-gold" style="flex:1;">Зберегти</button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(overlay);
-
-      overlay.addEventListener('click', () => overlay.remove());
-      overlay.querySelector('#cancelTpl').addEventListener('click', () => overlay.remove());
-      overlay.querySelector('#toggleAdvancedTpl').addEventListener('click', () => {
-        const fields = overlay.querySelector('#advancedTplFields');
-        fields.style.display = fields.style.display === 'none' ? 'flex' : 'none';
-      });
-      overlay.querySelector('#confirmTpl').addEventListener('click', () => {
-        const name = overlay.querySelector('#tplName').value.trim();
-        if (!name) {
-          alert('Введіть назву шаблону.');
-          return;
-        }
-        const price = {
-          gp: Math.max(0, parseInt(overlay.querySelector('#tplPriceGp').value) || 0),
-          sp: Math.max(0, parseInt(overlay.querySelector('#tplPriceSp').value) || 0),
-          cp: Math.max(0, parseInt(overlay.querySelector('#tplPriceCp').value) || 0)
-        };
-        const maxStack = Math.max(1, parseInt(overlay.querySelector('#tplMaxStack').value) || 1);
-        const extraSlots = Math.max(0, parseInt(overlay.querySelector('#tplExtraSlots').value) || 0);
-        overlay.remove();
-        onConfirm({ name, price, maxStack, extraSlots });
-      });
-
-      overlay.querySelector('#tplName').focus();
+      })();
     }
 
     async function deleteEnemyTemplate(id) {
@@ -1401,7 +1394,7 @@
       let newBlock = { id: 'b_' + Date.now() + Math.random().toString(36).slice(2, 6), type: type };
       if (type === 'description') newBlock.content = '';
       if (type === 'enemies') newBlock.list = [{ name: 'Монстр', hp: 10, ac: 10, attack: '+2 (1d6)', qty: 1 }];
-      if (type === 'items') newBlock.list = [{ name: 'Новий предмет', qty: 1, desc: '', max_stack: 1, extra_slots: 0 }];
+      if (type === 'items') newBlock.list = [{ name: 'Новий предмет', qty: 1, desc: '', max_stack: 1, extra_slots: 0, price: { gp: 0, sp: 0, cp: 0 } }];
       if (type === 'shop') newBlock.list = [];
       // Для 'visual' свідомо НЕ додаємо imageUrl/caption одразу -
       // вони опціональні і додаються окремими кнопками "+ Додати..."
@@ -1426,14 +1419,14 @@
     }
 
     function addItemRow(actIdx, sceneIdx, blockIdx) {
-      getBlocksArray(actIdx, sceneIdx)[blockIdx].list.push({ name: 'Новий предмет', qty: 1, desc: '', max_stack: 1, extra_slots: 0 });
+      getBlocksArray(actIdx, sceneIdx)[blockIdx].list.push({ name: 'Новий предмет', qty: 1, desc: '', max_stack: 1, extra_slots: 0, price: { gp: 0, sp: 0, cp: 0 } });
       renderActs();
     }
 
     // --- МАГАЗИН ---
     function addShopItem(actIdx, sceneIdx, blockIdx) {
       getBlocksArray(actIdx, sceneIdx)[blockIdx].list.push({
-        name: 'Новий товар', desc: '', price: { gp: 0, sp: 0, cp: 0 }
+        name: 'Новий товар', desc: '', price: { gp: 0, sp: 0, cp: 0 }, max_stack: 1, extra_slots: 0
       });
       renderActs();
     }

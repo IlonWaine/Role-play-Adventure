@@ -20,6 +20,22 @@ let isFirstMessageLoad = true;
 let pollTimer = null;
 let ws = null;
 
+// Гарантує, що приховані від гравця поля предмета (стак/бонусні
+// слоти/довідкова ціна - виставляє DM у DM_create чи dm_live) завжди
+// присутні на об'єкті, навіть якщо прийшли зі старих даних без них.
+// Ці поля НІДЕ в character_UI не рендеряться - лише зберігаються на
+// предметі й передаються назад при збереженні, щоб DM їх бачив у себе.
+function normalizeInventory(inventory) {
+  return (inventory || []).map(item => ({
+    max_stack: 1,
+    extra_slots: 0,
+    price_gp: 0,
+    price_sp: 0,
+    price_cp: 0,
+    ...item
+  }));
+}
+
 async function init() {
   const params = new URLSearchParams(window.location.search);
   sessionId = params.get('session_id');
@@ -46,6 +62,7 @@ async function init() {
     }
 
     charData = await charRes.json();
+    charData.inventory = normalizeInventory(charData.inventory);
     sessionData = await sessionRes.json();
   } catch (err) {
     console.error(err);
@@ -110,7 +127,7 @@ async function refreshCharacterData() {
     const fresh = await res.json();
     // Не чіпаємо ім'я/HP, які гравець міг саме зараз редагувати -
     // підтягуємо лише те, що змінюється ЗЗОВНІ (дарунки, обмін).
-    charData.inventory = fresh.inventory;
+    charData.inventory = normalizeInventory(fresh.inventory);
     charData.gp = fresh.gp;
     charData.sp = fresh.sp;
     charData.cp = fresh.cp;
@@ -359,7 +376,7 @@ async function tradeIndividualItem(itemIndex) {
     }
 
     const result = await res.json();
-    charData.inventory = result.from_character.inventory;
+    charData.inventory = normalizeInventory(result.from_character.inventory);
     renderInventory();
 
     await addChatMessage({

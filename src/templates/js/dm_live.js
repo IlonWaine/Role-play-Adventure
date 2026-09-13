@@ -306,63 +306,122 @@ function renderBlocksReadonly(blocks, container) {
         });
       });
     } else if (block.type === 'items') {
-      // Захист від старих історій, де предмет міг бути просто рядком -
-      // приводимо до того самого {name, qty, desc}, що й інвентар персонажа.
-      const items = (block.list || []).map(item => typeof item === 'string' ? { name: item, qty: 1, desc: '' } : item);
+      // Захист від старих історій, де предмет міг бути просто рядком, і
+      // гарантія, що всі приховані від гравця поля завжди присутні на
+      // самому предметі - рендеримо їх інлайн, без спливаючих вікон.
+      const items = (block.list || []).map(item => typeof item === 'string'
+        ? { name: item, qty: 1, desc: '', max_stack: 1, extra_slots: 0, price: { gp: 0, sp: 0, cp: 0 } }
+        : item);
+      items.forEach(item => {
+        if (!item.price) item.price = { gp: 0, sp: 0, cp: 0 };
+        if (item.max_stack === undefined) item.max_stack = 1;
+        if (item.extra_slots === undefined) item.extra_slots = 0;
+      });
       block.list = items; // нормалізуємо на місці - подальші .push() будуть у правильному форматі
 
-      const chips = items.map(item => `<div class="item-chip" draggable="true">🎁 ${item.name}${item.qty > 1 ? ` x${item.qty}` : ''}</div>`).join('');
+      const rows = items.map((item, i) => `
+        <div class="item-row-full-live">
+          <div class="item-row-main-live">
+            <span class="item-give-handle" draggable="true" data-idx="${i}" title="Перетягніть на картку гравця, або тапніть і тапніть по гравцю">🎁</span>
+            <input type="text" value="${item.name}" placeholder="Назва предмета" class="item-name-input-live" data-idx="${i}" data-field="name">
+            <input type="number" value="${item.qty || 1}" min="1" class="item-qty-input-live" data-idx="${i}" data-field="qty">
+            <button type="button" class="item-btn-remove-live" data-idx="${i}" title="Видалити предмет"><i class="fa-solid fa-trash"></i></button>
+          </div>
+          <textarea placeholder="Опис (необов'язково)" class="item-desc-input-live" data-idx="${i}" data-field="desc">${item.desc || ''}</textarea>
+          <div class="item-dm-meta-row-live" title="Видно лише DM - гравцю в картці персонажа не показується">
+            <span class="item-dm-meta-label-live">📦 Стак</span>
+            <input type="number" min="1" value="${item.max_stack}" class="item-stack-input-live" data-idx="${i}" data-field="max_stack">
+            <span class="item-dm-meta-label-live">➕ Слотів</span>
+            <input type="number" min="0" value="${item.extra_slots}" class="item-stack-input-live" data-idx="${i}" data-field="extra_slots">
+            <span class="item-dm-meta-label-live">Ціна</span>
+            <input type="number" min="0" value="${item.price.gp}" class="item-stack-input-live" data-idx="${i}" data-field="price_gp" title="Золоті">
+            <input type="number" min="0" value="${item.price.sp}" class="item-stack-input-live" data-idx="${i}" data-field="price_sp" title="Срібні">
+            <input type="number" min="0" value="${item.price.cp}" class="item-stack-input-live" data-idx="${i}" data-field="price_cp" title="Мідні">
+          </div>
+        </div>
+      `).join('');
+
       el.innerHTML = `
         <div class="scene-block-header">🎁 Предмети / Лут</div>
-        <div class="item-chips-row">${chips}</div>
+        <div style="display:flex; flex-direction:column; gap:8px; margin-top:6px;">${rows}</div>
         <button type="button" class="btn btn-outline add-item-btn" style="font-size:0.7rem; margin-top:6px;">
           <i class="fa-solid fa-plus"></i> Додати предмет
         </button>
       `;
-      el.querySelectorAll('.item-chip').forEach((chip, i) => {
-        const item = items[i];
-        chip.addEventListener('dragstart', () => {
+
+      el.querySelectorAll('.item-give-handle').forEach((handle) => {
+        const item = items[parseInt(handle.dataset.idx)];
+        handle.addEventListener('dragstart', () => {
           draggedItem = item;
-          chip.classList.add('dragging');
+          handle.classList.add('dragging');
         });
-        chip.addEventListener('dragend', () => chip.classList.remove('dragging'));
+        handle.addEventListener('dragend', () => handle.classList.remove('dragging'));
 
         // Тап-альтернатива drag&drop для мобільних (native HTML5 drag&drop
         // ненадійний на сенсорних екранах). Тап по предмету виділяє його,
         // повторний тап по тому ж предмету знімає виділення.
-        chip.addEventListener('click', () => {
+        handle.addEventListener('click', () => {
           if (selectedItemForGiving === item) {
             clearItemSelection();
           } else {
             clearItemSelection();
             selectedItemForGiving = item;
-            chip.classList.add('selected');
+            handle.classList.add('selected');
           }
         });
       });
 
-      // Створення предмета "на ходу" (для непередбачуваних ситуацій).
-      // Свідомо НЕ зберігається окремо в БД сесії/історії - додається лише
-      // в локальний стан цієї вкладки браузера. Реально збережеться щойно
+      // Редагування полів - інлайн, прямо в картці предмета (в т.ч.
+      // приховані від гравця стак/слоти/ціна), без окремого вікна.
+      el.querySelectorAll('[data-field]').forEach(input => {
+        input.addEventListener('change', () => {
+          const idx = parseInt(input.dataset.idx);
+          const field = input.dataset.field;
+          const item = items[idx];
+          if (field === 'qty') item.qty = parseInt(input.value) || 1;
+          else if (field === 'max_stack') item.max_stack = Math.max(1, parseInt(input.value) || 1);
+          else if (field === 'extra_slots') item.extra_slots = Math.max(0, parseInt(input.value) || 0);
+          else if (field === 'price_gp') item.price.gp = Math.max(0, parseInt(input.value) || 0);
+          else if (field === 'price_sp') item.price.sp = Math.max(0, parseInt(input.value) || 0);
+          else if (field === 'price_cp') item.price.cp = Math.max(0, parseInt(input.value) || 0);
+          else item[field] = input.value; // name / desc
+        });
+      });
+
+      el.querySelectorAll('.item-btn-remove-live').forEach(btn => {
+        btn.addEventListener('click', () => {
+          items.splice(parseInt(btn.dataset.idx), 1);
+          renderActs();
+        });
+      });
+
+      // Створення предмета "на ходу" (для непередбачуваних ситуацій) -
+      // додає порожній рядок прямо в список, DM одразу заповнює поля
+      // інлайн (як і решту предметів), без спливаючого вікна. Свідомо НЕ
+      // зберігається окремо в БД сесії/історії - реально збережеться щойно
       // DM перетягне його на картку персонажа (giveItemToCharacter пише
       // прямо в БД персонажа).
       el.querySelector('.add-item-btn').addEventListener('click', () => {
-        openAddItemModal((newItem) => {
-          block.list.push(newItem);
-          renderActs();
-        });
+        block.list.push({ name: 'Новий предмет', qty: 1, desc: '', max_stack: 1, extra_slots: 0, price: { gp: 0, sp: 0, cp: 0 } });
+        renderActs();
       });
     } else if (block.type === 'shop') {
       const shopItems = (block.list || []).map(i => ({
         name: i.name || '',
         desc: i.desc || '',
-        price: { gp: i.price?.gp || 0, sp: i.price?.sp || 0, cp: i.price?.cp || 0 }
+        price: { gp: i.price?.gp || 0, sp: i.price?.sp || 0, cp: i.price?.cp || 0 },
+        max_stack: i.max_stack || 1,
+        extra_slots: i.extra_slots || 0
       }));
       block.list = shopItems;
 
       const cards = shopItems.map((item, idx) => `
         <div class="shop-item-card">
           <div class="item-chip shop-chip" draggable="true">🛍️ ${item.name}</div>
+          <div class="shop-stack-row" title="Видно лише DM - гравець цього не бачить">
+            <div class="shop-stack-input-group"><span>📦</span><input type="number" min="1" value="${item.max_stack}" class="shop-stack-input" data-item-idx="${idx}" data-field="max_stack"></div>
+            <div class="shop-stack-input-group"><span>➕</span><input type="number" min="0" value="${item.extra_slots}" class="shop-stack-input" data-item-idx="${idx}" data-field="extra_slots"></div>
+          </div>
           <div class="shop-price-edit-row" title="Ціна редагована - можна торгуватись">
             <div class="shop-price-input-group"><span>🟡</span><input type="number" min="0" value="${item.price.gp}" class="shop-price-input" data-item-idx="${idx}" data-coin="gp"></div>
             <div class="shop-price-input-group"><span>⚪</span><input type="number" min="0" value="${item.price.sp}" class="shop-price-input" data-item-idx="${idx}" data-coin="sp"></div>
@@ -400,6 +459,15 @@ function renderBlocksReadonly(blocks, container) {
         });
       });
 
+      el.querySelectorAll('.shop-stack-input').forEach(input => {
+        input.addEventListener('change', () => {
+          const idx = parseInt(input.dataset.itemIdx);
+          const field = input.dataset.field;
+          const min = field === 'max_stack' ? 1 : 0;
+          shopItems[idx][field] = Math.max(min, parseInt(input.value) || min);
+        });
+      });
+
       // Ціна редагована прямо тут - зручно, якщо гравці торгуються за товар.
       // Зміна впливає лише на ЦЮ живу сесію (в пам'яті вкладки), шаблон
       // товару в самій історії не змінюється - наступного разу ціна знову
@@ -417,58 +485,6 @@ function renderBlocksReadonly(blocks, container) {
 
     container.appendChild(el);
   });
-}
-
-function openAddItemModal(onConfirm) {
-  const overlay = document.createElement('div');
-  overlay.className = 'lightbox-overlay';
-  overlay.style.cursor = 'default';
-  overlay.innerHTML = `
-    <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:10px; padding:16px; width:100%; max-width:320px; display:flex; flex-direction:column; gap:8px;" onclick="event.stopPropagation()">
-      <div style="font-weight:700; color:var(--accent-gold);">🎁 Новий предмет</div>
-      <input type="text" id="newItemName" placeholder="Назва предмета" style="background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main); padding:6px 8px;">
-      <input type="number" id="newItemQty" value="1" min="1" placeholder="Кількість" style="background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main); padding:6px 8px;">
-      <input type="text" id="newItemDesc" placeholder="Опис (необов'язково)" style="background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main); padding:6px 8px;">
-      <button type="button" id="toggleAdvancedAdd" class="btn btn-dark" style="font-size:0.7rem;">⚙️ Додаткові параметри</button>
-      <div id="advancedAddFields" style="display:none; flex-direction:column; gap:6px; border-top:1px dashed var(--border-color); padding-top:8px;">
-        <label style="font-size:0.75rem; color:var(--text-muted);">
-          Макс. стак у слоті (за замовч. 1):
-          <input type="number" id="newItemMaxStack" value="1" min="1" style="background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main); padding:4px 6px; width:100%;">
-        </label>
-        <label style="font-size:0.75rem; color:var(--text-muted);">
-          Додаткові слоти інвентарю (напр. сумка):
-          <input type="number" id="newItemExtraSlots" value="0" min="0" style="background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main); padding:4px 6px; width:100%;">
-        </label>
-      </div>
-      <div style="display:flex; gap:8px; margin-top:4px;">
-        <button type="button" id="cancelAddItem" class="btn btn-dark" style="flex:1;">Скасувати</button>
-        <button type="button" id="confirmAddItem" class="btn btn-gold" style="flex:1;">Додати</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-
-  overlay.addEventListener('click', () => overlay.remove());
-  overlay.querySelector('#cancelAddItem').addEventListener('click', () => overlay.remove());
-  overlay.querySelector('#toggleAdvancedAdd').addEventListener('click', () => {
-    const fields = overlay.querySelector('#advancedAddFields');
-    fields.style.display = fields.style.display === 'none' ? 'flex' : 'none';
-  });
-  overlay.querySelector('#confirmAddItem').addEventListener('click', () => {
-    const name = overlay.querySelector('#newItemName').value.trim();
-    if (!name) {
-      alert('Введіть назву предмета.');
-      return;
-    }
-    const qty = parseInt(overlay.querySelector('#newItemQty').value) || 1;
-    const desc = overlay.querySelector('#newItemDesc').value.trim();
-    const maxStack = Math.max(1, parseInt(overlay.querySelector('#newItemMaxStack').value) || 1);
-    const extraSlots = Math.max(0, parseInt(overlay.querySelector('#newItemExtraSlots').value) || 0);
-    overlay.remove();
-    onConfirm({ name, qty, desc, max_stack: maxStack, extra_slots: extraSlots });
-  });
-
-  overlay.querySelector('#newItemName').focus();
 }
 
 function getEnemyHp(blockId, instanceKey, defaultVal) {
@@ -579,7 +595,10 @@ function addItemWithStacking(inventory, newItem) {
       qty,
       desc: newItem.desc || '',
       max_stack: maxStack,
-      extra_slots: newItem.extra_slots || 0
+      extra_slots: newItem.extra_slots || 0,
+      price_gp: newItem.price_gp || 0,
+      price_sp: newItem.price_sp || 0,
+      price_cp: newItem.price_cp || 0
     });
     remaining -= qty;
     slotsNeeded++;
@@ -610,7 +629,10 @@ async function giveItemToCharacter(targetCharId, item) {
       qty: item.qty || 1,
       desc: item.desc || '',
       max_stack: Math.max(1, item.max_stack || 1),
-      extra_slots: item.extra_slots || 0
+      extra_slots: item.extra_slots || 0,
+      price_gp: item.price?.gp || 0,
+      price_sp: item.price?.sp || 0,
+      price_cp: item.price?.cp || 0
     };
 
     const { inventory: newInventory, slotsNeeded } = addItemWithStacking(currentInventory, normalizedItem);
@@ -697,7 +719,10 @@ async function buyItemForCharacter(targetCharId, shopItem) {
       qty: 1,
       desc: shopItem.desc || '',
       max_stack: Math.max(1, shopItem.max_stack || 1),
-      extra_slots: shopItem.extra_slots || 0
+      extra_slots: shopItem.extra_slots || 0,
+      price_gp: shopItem.price?.gp || 0,
+      price_sp: shopItem.price?.sp || 0,
+      price_cp: shopItem.price?.cp || 0
     };
 
     const { inventory: newInventory, slotsNeeded } = addItemWithStacking(currentInventory, normalizedItem);
