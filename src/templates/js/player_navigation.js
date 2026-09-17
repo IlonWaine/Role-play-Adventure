@@ -77,28 +77,39 @@ document.addEventListener("DOMContentLoaded", () => {
         playersListEl.innerHTML = "";
 
         if (players.length === 0) {
-            playersListEl.innerHTML = "<p>У вас поки немає доданих гравців.</p>";
+            playersListEl.innerHTML = '<p class="empty-state">У вас поки немає доданих гравців. Додайте першого вище.</p>';
             return;
         }
 
         players.forEach(player => {
-            const item = document.createElement("div");
-            item.className = "player-item";
+            const card = document.createElement("div");
+            card.className = "player-card";
 
-            const header = document.createElement("div");
-            header.className = "player-header";
-            header.innerHTML = `<span>Гравець: ${player.name} <span class="player-code-badge">ID: ${player.player_code}</span></span> <span>Персонажів: ${player.characters.length} ▼</span>`;
+            const head = document.createElement("div");
+            head.className = "player-head";
+            const charCountText = player.characters.length === 0
+                ? "Немає персонажів"
+                : `${player.characters.length} ${pluralUk(player.characters.length, 'персонаж', 'персонажі', 'персонажів')}`;
+            head.innerHTML = `
+                <div class="player-avatar"><i class="fa-solid fa-user"></i></div>
+                <div class="player-head-text">
+                    <div class="player-name">${player.name}</div>
+                    <div class="player-meta"><code>ID: ${player.player_code}</code><span>${charCountText}</span></div>
+                </div>
+                <i class="fa-solid fa-chevron-down chevron"></i>
+            `;
+            head.addEventListener("click", () => card.classList.toggle("open"));
 
-            // Кнопки дій для гравця (новий персонаж / видалити гравця).
-            // Свідомо ЗА МЕЖАМИ charsList — інакше ховаються разом
-            // зі згорнутим акордеоном і їх просто не видно.
+            // Кнопки дій для гравця (новий персонаж / видалити гравця) -
+            // за межами charsList, як і раніше, щоб не ховатись разом зі
+            // згорнутим акордеоном.
             const playerActions = document.createElement("div");
             playerActions.className = "player-actions";
 
             const newCharBtn = document.createElement("button");
             newCharBtn.type = "button";
-            newCharBtn.className = "btn-add-char";
-            newCharBtn.textContent = "+ Новий герой";
+            newCharBtn.className = "btn-mini";
+            newCharBtn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Новий герой';
             newCharBtn.addEventListener("click", (e) => {
                 e.stopPropagation();
                 createCharacterAndOpen(player.id);
@@ -107,8 +118,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const deletePlayerBtn = document.createElement("button");
             deletePlayerBtn.type = "button";
-            deletePlayerBtn.className = "btn-add-char btn-delete-inline";
-            deletePlayerBtn.textContent = "🗑️ Видалити гравця";
+            deletePlayerBtn.className = "btn-mini danger";
+            deletePlayerBtn.innerHTML = '<i class="fa-solid fa-trash"></i> Видалити гравця';
             deletePlayerBtn.addEventListener("click", async (e) => {
                 e.stopPropagation();
                 const confirmed = confirm(
@@ -126,23 +137,29 @@ document.addEventListener("DOMContentLoaded", () => {
             playerActions.appendChild(deletePlayerBtn);
 
             const charsList = document.createElement("div");
-            charsList.className = "characters-list";
+            charsList.className = "char-list";
 
             if (player.characters.length === 0) {
-                charsList.innerHTML = "<em>Немає створених персонажів</em>";
+                charsList.innerHTML = '<div class="empty-hint">Персонажів ще немає — натисніть "Новий герой" вище</div>';
             } else {
                 player.characters.forEach(char => {
                     const charCard = document.createElement("div");
-                    charCard.className = "character-card character-card-link";
+                    charCard.className = "char-card";
                     charCard.innerHTML = `
-                        <span>${char.name}${char.role ? " — " + char.role : ""}</span>
-                        <button type="button" class="btn-delete-inline" title="Видалити персонажа">🗑️</button>
+                        <div class="char-main">
+                            <i class="fa-solid fa-chess-knight char-icon"></i>
+                            <div>
+                                <div class="char-name">${char.name}</div>
+                                ${char.role ? `<div class="char-role">${char.role}</div>` : ''}
+                            </div>
+                        </div>
+                        <button type="button" class="btn-del-icon" title="Видалити персонажа"><i class="fa-solid fa-trash"></i></button>
                     `;
                     charCard.addEventListener("click", (e) => {
-                        if (e.target.closest('.btn-delete-inline')) return;
+                        if (e.target.closest('.btn-del-icon')) return;
                         openCharacterEditor(char.id, player.id);
                     });
-                    charCard.querySelector('.btn-delete-inline').addEventListener('click', async (e) => {
+                    charCard.querySelector('.btn-del-icon').addEventListener('click', async (e) => {
                         e.stopPropagation();
                         const confirmed = confirm(`Видалити персонажа "${char.name}" назавжди?`);
                         if (!confirmed) return;
@@ -158,15 +175,19 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
             }
 
-            // Логіка згортання/розгортання списку
-            header.addEventListener("click", () => {
-                charsList.classList.toggle("open");
-            });
-
-            item.appendChild(header);
-            item.appendChild(playerActions);
-            item.appendChild(charsList);
-            playersListEl.appendChild(item);
+            card.appendChild(head);
+            card.appendChild(playerActions);
+            card.appendChild(charsList);
+            playersListEl.appendChild(card);
         });
+    }
+
+    // Українська плюралізація (1 персонаж / 2 персонажі / 5 персонажів)
+    function pluralUk(n, one, few, many) {
+        const mod10 = n % 10;
+        const mod100 = n % 100;
+        if (mod10 === 1 && mod100 !== 11) return one;
+        if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+        return many;
     }
 });

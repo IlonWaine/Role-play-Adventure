@@ -4,50 +4,51 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>D&D Nexus Hub - Історії DM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/player_navigation.css">
-    <!--
-      Тимчасовий fallback-стиль (аналогічно player_navigation.html),
-      поки немає окремого story_navigation.css.
-    -->
-    <style>
-        .player-actions { margin: 0.5rem 0; }
-        .btn-add-char {
-            cursor: pointer;
-            padding: 0.4rem 0.9rem;
-            border: 1px dashed #888;
-            border-radius: 6px;
-            background: transparent;
-            font-size: 0.85rem;
-        }
-        .btn-add-char:hover { background: rgba(0,0,0,0.05); }
-        .character-card-link { cursor: pointer; }
-        .character-card-link:hover { background: rgba(0,0,0,0.05); }
-        .new-story-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-        .new-story-row input { flex: 1; }
-    </style>
 </head>
 <body>
     <div class="container">
-        <header>
-            <button onclick="window.location.href='/'" class="btn-secondary" title="До меню">←</button>
-            <h1>Історії Dungeon Master'a</h1>
-            <button id="logoutBtn" class="btn-secondary">Вийти</button>
-        </header>
+
+        <div class="top-bar">
+            <div class="brand">
+                <i class="fa-solid fa-dice-d20"></i>
+                <span class="brand-text">D&D <span>Nexus</span> Hub</span>
+            </div>
+            <div class="top-bar-actions">
+                <button class="btn-icon" onclick="window.location.href='/?menu=1'" title="До меню"><i class="fa-solid fa-arrow-left"></i></button>
+                <button id="logoutBtn" class="btn-icon danger" title="Вийти з акаунту"><i class="fa-solid fa-right-from-bracket"></i></button>
+            </div>
+        </div>
+
+        <nav class="tab-strip">
+            <a href="/player_navigation"><i class="fa-solid fa-gauge"></i> Панель</a>
+            <a href="/story_navigation" class="active"><i class="fa-solid fa-book-open"></i> Історії</a>
+            <a href="/session_setup"><i class="fa-solid fa-play"></i> Сесії</a>
+        </nav>
+
+        <h1 class="page-title">Історії Dungeon Master'а</h1>
+        <p class="page-subtitle">Створюйте та редагуйте сценарії для ваших кампаній</p>
 
         <section class="forms-section">
             <div class="card">
-                <h3>Створити нову історію</h3>
-                <form id="addStoryForm" class="new-story-row">
+                <div class="card-label">Створити нову історію</div>
+                <form id="addStoryForm" class="inline-form">
                     <input type="text" id="storyTitleInput" placeholder="Назва історії" required>
-                    <button type="submit" class="btn-primary">+ Створити</button>
+                    <button type="submit" class="btn-gold"><i class="fa-solid fa-plus"></i> Створити</button>
                 </form>
             </div>
         </section>
 
         <section class="list-section">
-            <h2>Ваші Історії</h2>
-            <div id="storiesList" class="accordion-list"></div>
+            <div class="section-label">Ваші історії</div>
+            <div id="storiesList"></div>
         </section>
+
+        <footer class="page-footer">D&D Nexus Hub — панель Dungeon Master</footer>
     </div>
 
     <script src="js/story_navigation.js"></script>

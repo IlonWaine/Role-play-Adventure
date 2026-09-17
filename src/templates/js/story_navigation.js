@@ -55,14 +55,17 @@ document.addEventListener("DOMContentLoaded", () => {
         storiesListEl.innerHTML = "";
 
         if (stories.length === 0) {
-            storiesListEl.innerHTML = "<p>У вас поки немає створених історій.</p>";
+            storiesListEl.innerHTML = '<p class="empty-state">У вас поки немає створених історій. Створіть першу вище.</p>';
             return;
         }
 
         stories.forEach(story => {
             const card = document.createElement("div");
-            card.className = "character-card character-card-link";
-            card.innerHTML = `<strong>📖 ${story.title}</strong>`;
+            card.className = "story-card";
+            card.innerHTML = `
+                <i class="fa-solid fa-book-open story-icon"></i>
+                <span class="story-title">${story.title}</span>
+            `;
             card.addEventListener("click", () => openStoryEditor(story.id));
             storiesListEl.appendChild(card);
         });

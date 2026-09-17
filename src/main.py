@@ -670,8 +670,9 @@ def lookup_player(player_code: str, db: Session = Depends(database.get_db)):
 # =============================================================================
 @app.post("/api/characters", status_code=status.HTTP_201_CREATED)
 def create_character(data: CharacterCreateSchema, db: Session = Depends(database.get_db)):
-    """DM тисне '+ Новий герой' у player_navigation -> створюємо порожню картку
-    і повертаємо її id, щоб фронтенд одразу перейшов у редактор."""
+    """DM тисне '+ Новий герой' на вкладці "Гравці" в /dm_dashboard ->
+    створюємо порожню картку і повертаємо її id, щоб фронтенд одразу
+    перейшов у редактор."""
     player = db.query(database_structure.Player).get(data.player_id)
     if not player:
         raise HTTPException(status_code=404, detail="Гравця не знайдено")
@@ -738,8 +739,9 @@ def get_dm_stories(dm_id: int, db: Session = Depends(database.get_db)):
 
 @app.post("/api/stories", status_code=status.HTTP_201_CREATED)
 def create_story(data: StoryCreateSchema, db: Session = Depends(database.get_db)):
-    """DM тисне '+ Нова історія' у story_navigation -> створюємо порожню
-    заготовку і повертаємо її id, щоб фронтенд одразу перейшов у редактор."""
+    """DM тисне '+ Нова історія' на вкладці "Історії" в /dm_dashboard ->
+    створюємо порожню заготовку і повертаємо її id, щоб фронтенд одразу
+    перейшов у редактор."""
     dm = db.query(database_structure.DMUser).get(data.dm_id)
     if not dm:
         raise HTTPException(status_code=404, detail="DM не знайдено")
@@ -1121,11 +1123,12 @@ def get_favicon():
     return FileResponse(favicon_path)
 
 
-@app.get("/player_navigation")
-def get_player_navigation_page():
-    file_path = os.path.join(TEMPLATES_DIR, "player_navigation.html")
+@app.get("/dm_dashboard")
+def get_dm_dashboard_page():
+    """Єдина панель DM (Гравці / Історії / Сесії як вкладки)."""
+    file_path = os.path.join(TEMPLATES_DIR, "dm_dashboard.html")
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File player_navigation.html not found")
+        raise HTTPException(status_code=404, detail="File dm_dashboard.html not found")
     return FileResponse(file_path)
 
 
@@ -1137,27 +1140,11 @@ def get_character_creation_page():
     return FileResponse(file_path)
 
 
-@app.get("/story_navigation")
-def get_story_navigation_page():
-    file_path = os.path.join(TEMPLATES_DIR, "story_navigation.html")
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File story_navigation.html not found")
-    return FileResponse(file_path)
-
-
 @app.get("/dm_create")
 def get_dm_create_page():
     file_path = os.path.join(TEMPLATES_DIR, "DM_create.html")
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File DM_create.html not found")
-    return FileResponse(file_path)
-
-
-@app.get("/session_setup")
-def get_session_setup_page():
-    file_path = os.path.join(TEMPLATES_DIR, "session_setup.html")
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File session_setup.html not found")
     return FileResponse(file_path)
 
 

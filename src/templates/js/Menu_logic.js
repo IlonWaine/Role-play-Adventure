@@ -14,14 +14,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const backBtn = document.getElementById('backBtn');
 
   const dmAuthPanel = document.getElementById('dmAuthPanel');
-  const dmDashboard = document.getElementById('dmDashboard');
   const dmLoginForm = document.getElementById('dmLoginForm');
   const dmRegisterForm = document.getElementById('dmRegisterForm');
   const tabLoginBtn = document.getElementById('tabLoginBtn');
   const tabRegisterBtn = document.getElementById('tabRegisterBtn');
-  const dmWelcomeText = document.getElementById('dmWelcomeText');
-  const dmLogoutBtn = document.getElementById('dmLogoutBtn');
-  const dmCleanupBtn = document.getElementById('dmCleanupBtn');
 
   const btnPlayerModeView = document.getElementById('btnPlayerModeView');
   const btnPlayerModeJoin = document.getElementById('btnPlayerModeJoin');
@@ -121,6 +117,12 @@ document.addEventListener('DOMContentLoaded', () => {
         currentRole = role;
 
         if (role === 'dm') {
+          // Якщо DM вже має збережену сесію - не показуємо форму входу
+          // повторно, одразу переходимо в панель.
+          if (currentDMUser) {
+            window.location.href = '/dm_dashboard';
+            return;
+          }
           showStep(dmStep);
         } else {
           showStep(playerStep);
@@ -296,57 +298,9 @@ const handleLogin = async (e) => {
 if (btnLogin) btnLogin.addEventListener('click', handleLogin);
 if (dmLoginForm) dmLoginForm.addEventListener('submit', handleLogin);
 
-    // 4. Logout
-    if (dmLogoutBtn) {
-      dmLogoutBtn.addEventListener('click', () => {
-        currentDMUser = null;
-        // Обидва ключі мають чиститись разом, інакше player_navigation.js
-        // (який дивиться лише на dm_id) залишиться "залогіненим" зі старим DM.
-        localStorage.removeItem('dnd_dm_session');
-        localStorage.removeItem('dm_id');
-        if (dmDashboard) dmDashboard.classList.add('hidden');
-        if (dmAuthPanel) dmAuthPanel.classList.remove('hidden');
-      });
-    }
-
-    // 5. Очищення старих даних (чат + завершені сесії понад 30 днів) + VACUUM
-    if (dmCleanupBtn) {
-      dmCleanupBtn.addEventListener('click', async () => {
-        const confirmed = confirm(
-          'Видалити чат і завершені ігрові сесії, старіші за 30 днів, та звільнити місце в БД (VACUUM)?\n\n' +
-          'Персонажів, гравців та історії це НЕ торкнеться - тільки старе листування закінчених ігор.'
-        );
-        if (!confirmed) return;
-
-        dmCleanupBtn.disabled = true;
-        dmCleanupBtn.textContent = '🧹 Очищення...';
-
-        try {
-          const cleanupRes = await fetch('/api/maintenance/cleanup-sessions?days=30', { method: 'POST' });
-          const cleanupResult = await cleanupRes.json().catch(() => ({}));
-
-          if (!cleanupRes.ok) {
-            alert(cleanupResult.detail || 'Помилка очищення.');
-            return;
-          }
-
-          const vacuumRes = await fetch('/api/maintenance/vacuum', { method: 'POST' });
-          const vacuumOk = vacuumRes.ok;
-
-          alert(
-            `Видалено сесій: ${cleanupResult.deleted_sessions ?? 0}\n` +
-            `Видалено повідомлень чату: ${cleanupResult.deleted_messages ?? 0}\n` +
-            (vacuumOk ? 'Місце на диску звільнено (VACUUM виконано).' : 'VACUUM не вдався (не критично, дані вже видалені).')
-          );
-        } catch (err) {
-          console.error(err);
-          alert("Помилка з'єднання з сервером.");
-        } finally {
-          dmCleanupBtn.disabled = false;
-          dmCleanupBtn.textContent = '🧹 Очистити старі сесії';
-        }
-      });
-    }
+    // Логаут і очищення старих сесій (VACUUM) тепер живуть на самій
+    // сторінці /dm_dashboard (там DM і проводить весь час) - див.
+    // dm_dashboard.js.
   }
 
   function loginDM(userData) {
@@ -354,22 +308,28 @@ if (dmLoginForm) dmLoginForm.addEventListener('submit', handleLogin);
     // Зберігаємо сесію у localStorage
     localStorage.setItem('dnd_dm_session', JSON.stringify(userData));
 
-    if (dmWelcomeText) {
-      dmWelcomeText.textContent = `Вітаємо, Майстре ${userData.nickname || userData.name}!`;
-    }
-    if (dmAuthPanel) dmAuthPanel.classList.add('hidden');
-    if (dmDashboard) dmDashboard.classList.remove('hidden');
+    // Раніше тут показувався dmDashboard (3 картки: Гравці / Історії /
+    // Сесії) - тепер той самий вибір є на єдиній панелі /dm_dashboard у
+    // вигляді вкладок (клік на ПК, свайп на телефоні), тож цей проміжний
+    // екран лише дублював функціонал. Одразу переходимо туди. (Це саме
+    // щойно виконаний вхід - на відміну від checkExistingDMSession, тут
+    // завжди переходимо без винятків.)
+    window.location.href = '/dm_dashboard';
   }
 
   function checkExistingDMSession() {
+    // Домашня сторінка завжди починається з вибору ролі (DM чи Гравець) -
+    // тут нічого не показуємо і нікуди не перенаправляємо. Лише
+    // запам'ятовуємо, що DM уже авторизований, щоб клік по картці
+    // "Dungeon Master" одразу переніс у /dm_dashboard, а не показував
+    // форму входу повторно (див. setupRoleSelection).
     const savedSession = localStorage.getItem('dnd_dm_session');
-    if (savedSession) {
-      try {
-        const userData = JSON.parse(savedSession);
-        loginDM(userData);
-      } catch (e) {
-        localStorage.removeItem('dnd_dm_session');
-      }
+    if (!savedSession) return;
+
+    try {
+      currentDMUser = JSON.parse(savedSession);
+    } catch (e) {
+      localStorage.removeItem('dnd_dm_session');
     }
   }
 
@@ -536,14 +496,3 @@ if (dmLoginForm) dmLoginForm.addEventListener('submit', handleLogin);
   }
 
 });
-
-// Global navigation router for DM Actions
-window.navigateTo = function(route) {
-  if (route === 'create_character') {
-    window.location.href = '/player_navigation';
-  } else if (route === 'story_builder') {
-    window.location.href = '/story_navigation';
-  } else if (route === 'live_session' || route === 'dmDashboardStep') {
-    window.location.href = '/session_setup';
-  }
-};

@@ -6,7 +6,9 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
     }
 
-    document.getElementById("backBtn").addEventListener("click", () => {
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+        localStorage.removeItem("dm_id");
+        localStorage.removeItem("dnd_dm_session");
         window.location.href = "/";
     });
 
@@ -20,31 +22,32 @@ document.addEventListener("DOMContentLoaded", () => {
         const sessions = await res.json();
 
         if (sessions.length === 0) {
-            container.innerHTML = "<p>Немає жодної сесії.</p>";
+            container.innerHTML = '<p class="empty-state">Немає жодної сесії. Оберіть історію нижче, щоб почати нову.</p>';
             return;
         }
 
         container.innerHTML = "";
         sessions.forEach(s => {
             const card = document.createElement("div");
-            card.className = "character-card" + (s.is_active ? " character-card-link" : "");
+            card.className = "session-card" + (s.is_active ? " is-live" : " is-ended");
             card.innerHTML = `
-                <span>
-                    <strong>📖 ${s.story_title}</strong>
-                    <span class="room-code-badge">${s.room_code}</span>
-                    ${!s.is_active ? '<span class="ended-badge">завершено</span>' : ''}
-                </span>
-                <button type="button" class="btn-delete-session" title="Видалити сесію назавжди">🗑️</button>
+                <div class="session-main">
+                    <i class="fa-solid fa-book-open story-icon"></i>
+                    <span class="session-title">${s.story_title}</span>
+                    <span class="badge-room-code">${s.room_code}</span>
+                    ${!s.is_active ? '<span class="badge-ended">завершено</span>' : ''}
+                </div>
+                <button type="button" class="btn-del-icon" title="Видалити сесію назавжди"><i class="fa-solid fa-trash"></i></button>
             `;
 
             if (s.is_active) {
                 card.addEventListener("click", (e) => {
-                    if (e.target.closest('.btn-delete-session')) return;
+                    if (e.target.closest('.btn-del-icon')) return;
                     window.location.href = `/dm_live?session_id=${s.id}`;
                 });
             }
 
-            card.querySelector('.btn-delete-session').addEventListener('click', async (e) => {
+            card.querySelector('.btn-del-icon').addEventListener('click', async (e) => {
                 e.stopPropagation();
                 const confirmed = confirm(
                     `Видалити сесію "${s.story_title}" (${s.room_code}) назавжди?\n` +
@@ -71,15 +74,18 @@ document.addEventListener("DOMContentLoaded", () => {
         const stories = await res.json();
 
         if (stories.length === 0) {
-            container.innerHTML = "<p>У вас ще немає створених історій. Спочатку створіть історію.</p>";
+            container.innerHTML = '<p class="empty-state">У вас ще немає створених історій. Спочатку створіть історію на вкладці "Історії".</p>';
             return;
         }
 
         container.innerHTML = "";
         stories.forEach(story => {
             const card = document.createElement("div");
-            card.className = "character-card character-card-link";
-            card.innerHTML = `<strong>▶ ${story.title}</strong>`;
+            card.className = "story-card";
+            card.innerHTML = `
+                <i class="fa-solid fa-play story-icon"></i>
+                <span class="story-title">${story.title}</span>
+            `;
             card.addEventListener("click", async () => {
                 const res = await fetch("/api/sessions", {
                     method: "POST",

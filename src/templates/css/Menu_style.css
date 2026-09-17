@@ -64,8 +64,6 @@ body {
 .width-full { width: 100%; }
 .max-w-md { max-width: 400px; margin: 0 auto; }
 .max-w-2xl { max-width: 672px; margin: 0 auto; }
-.max-w-3xl { max-width: 768px; margin: 0 auto; }
-.margin-top-lg { margin-top: 1.5rem; }
 
 /* Layout Grid */
 .grid {
@@ -73,11 +71,9 @@ body {
   gap: 1rem;
 }
 .grid-2 { grid-template-columns: 1fr; }
-.grid-3 { grid-template-columns: 1fr; }
 
 @media (min-width: 640px) {
   .grid-2 { grid-template-columns: repeat(2, 1fr); }
-  .grid-3 { grid-template-columns: repeat(3, 1fr); }
 }
 
 /* Main Container Card */
@@ -164,7 +160,7 @@ body {
 }
 
 /* Interactive Cards */
-.card-option, .card-action {
+.card-option {
   background-color: var(--bg-dark);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -183,17 +179,17 @@ body {
   box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
 }
 
-.card-option h3, .card-action h4 {
+.card-option h3 {
   font-size: 1rem;
   font-weight: 700;
   margin-bottom: 0.25rem;
   transition: var(--transition);
 }
 
-.hover-gold:hover h3, .hover-gold:hover h4 { color: var(--accent-gold); }
+.hover-gold:hover h3 { color: var(--accent-gold); }
 .hover-blue:hover h3 { color: var(--accent-blue); }
 
-.card-option p, .card-action p {
+.card-option p {
   font-size: 0.75rem;
   color: var(--text-muted);
   line-height: 1.4;
@@ -226,25 +222,6 @@ body {
   background-color: var(--accent-blue-light);
   border: 1px solid rgba(59, 130, 246, 0.3);
   color: var(--accent-blue);
-}
-
-.icon-box.gold-small {
-  width: 40px;
-  height: 40px;
-  font-size: 1.25rem;
-  background-color: var(--accent-gold-light);
-  color: var(--accent-gold);
-  margin: 0 auto 0.75rem auto;
-}
-
-.live-card {
-  background-color: rgba(217, 119, 6, 0.1);
-  border-color: rgba(217, 119, 6, 0.3);
-  text-align: center;
-}
-
-.live-card:hover {
-  background-color: rgba(217, 119, 6, 0.2);
 }
 
 /* Badges */
