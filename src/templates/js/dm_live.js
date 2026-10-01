@@ -18,7 +18,7 @@ async function init() {
   sessionId = new URLSearchParams(window.location.search).get('session_id');
   if (!sessionId) {
     alert('Не вказано ID сесії.');
-    window.location.href = '/session_setup';
+    window.location.href = '/dm_dashboard?tab=sessions';
     return;
   }
 
@@ -77,7 +77,7 @@ async function loadSession() {
     const res = await fetch(`/api/sessions/${sessionId}`);
     if (!res.ok) {
       alert('Сесію не знайдено (можливо, вона вже завершена).');
-      window.location.href = '/session_setup';
+      window.location.href = '/dm_dashboard?tab=sessions';
       return;
     }
     sessionData = await res.json();
@@ -954,7 +954,7 @@ async function endSession() {
   try {
     await fetch(`/api/sessions/${sessionId}/end`, { method: 'POST' });
     alert('Сесію завершено.');
-    window.location.href = '/session_setup';
+    window.location.href = '/dm_dashboard?tab=sessions';
   } catch (err) {
     console.error(err);
     alert('Помилка завершення сесії.');

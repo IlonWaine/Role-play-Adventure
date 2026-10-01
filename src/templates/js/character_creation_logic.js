@@ -3,9 +3,9 @@
  * D&D CHARACTER BUILDER & EDITOR LOGIC (DM SMARTPHONE OPTIMIZED)
  * ============================================================================
  * Сторінка відкривається як /character_creation?char_id=...&player_id=...
- * char_id - обов'язковий: player_navigation.js завжди спочатку створює
- * порожнього персонажа через POST /api/characters, і тільки потім відкриває
- * цю сторінку з готовим id.
+ * char_id - обов'язковий: вкладка "Гравці" в /dm_dashboard завжди спочатку
+ * створює порожнього персонажа через POST /api/characters, і тільки потім
+ * відкриває цю сторінку з готовим id.
  */
 
 const emptyCharacterTemplate = {
@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (!charId) {
     alert("Не вказано персонажа для редагування (відсутній char_id у посиланні).");
-    window.location.href = '/player_navigation';
+    window.location.href = '/dm_dashboard?tab=players';
     return;
   }
 
@@ -62,7 +62,7 @@ async function loadCharacterFromServer(charId) {
     const response = await fetch(`/api/characters/${charId}`);
     if (!response.ok) {
       alert("Персонажа не знайдено на сервері.");
-      window.location.href = '/player_navigation';
+      window.location.href = '/dm_dashboard?tab=players';
       return;
     }
     const data = await response.json();

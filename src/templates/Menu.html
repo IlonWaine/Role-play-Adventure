@@ -88,37 +88,6 @@
             <button type="submit" class="btn btn-gold">Зареєструватися</button>
           </form>
         </div>
-
-        <div id="dmDashboard" class="hidden">
-          <div class="section-title text-center">
-            <h2 class="text-gold"><i class="fa-solid fa-crown"></i> Панель Dungeon Master</h2>
-            <p id="dmWelcomeText">Вітаємо, Майстре!</p>
-          </div>
-
-          <div class="grid grid-3 max-w-3xl">
-            <div class="card-action hover-gold" onclick="navigateTo('create_character')">
-              <div class="icon-box gold-small"><i class="fa-solid fa-user-plus"></i></div>
-              <h4>Створення персонажа</h4>
-              <p>Конструктор характеристик, класу та прив'язка до Player ID.</p>
-            </div>
-
-            <div class="card-action hover-gold" onclick="navigateTo('story_builder')">
-              <div class="icon-box gold-small"><i class="fa-solid fa-book-open"></i></div>
-              <h4>Створення історії</h4>
-              <p>Конструктор сцен, створення груп гравців, ворогів та квестів.</p>
-            </div>
-
-            <div class="card-action live-card" onclick="navigateTo('live_session')">
-              <div class="icon-box gold-small"><i class="fa-solid fa-play"></i></div>
-              <h4>Почати гру (Live)</h4>
-              <p>Запуск інтерактивного дашборду для керування грою.</p>
-            </div>
-          </div>
-          
-          <div class="text-center margin-top-lg">
-            <button id="dmLogoutBtn" class="btn-text text-danger">Вийти з акаунту DM</button>
-          </div>
-        </div>
       </section>
 
       <section id="playerStep" class="step-section hidden max-w-2xl">
@@ -152,7 +121,7 @@
             <input type="text" id="playerIdOnlyInput" placeholder="напр., 3-15 (ID Майстра - ID Гравця)">
             <button id="btnSearchChar" class="btn btn-blue">Пошук</button>
           </div>
-          <div id="viewOnlyCharList" class="character-list custom-scrollbar"></div>
+          <div id="viewOnlyCharList" class="character-list"></div>
         </div>
 
         <div id="joinSessionSubpanel" class="subpanel border-gold hidden">

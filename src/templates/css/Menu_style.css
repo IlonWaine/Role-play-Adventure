@@ -386,8 +386,6 @@ body {
 
 .character-list {
   margin-top: 0.75rem;
-  max-height: 180px;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -412,11 +410,6 @@ body {
   font-size: 0.7rem;
   color: var(--text-muted);
 }
-
-/* Scrollbar */
-.custom-scrollbar::-webkit-scrollbar { width: 5px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: var(--bg-main); }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
 
 /* Footer */
 .app-footer {
