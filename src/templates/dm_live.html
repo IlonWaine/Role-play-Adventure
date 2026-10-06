@@ -43,11 +43,21 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-wrap: wrap;
+      row-gap: 10px;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
       gap: 12px;
     }
 
-    .header-title-container { display: flex; align-items: center; gap: 12px; }
+    .header-title-container { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      margin-left: auto;
+    }
 
     .btn {
       padding: 6px 12px;
@@ -69,6 +79,13 @@
     .btn-dark { background-color: var(--bg-element); color: var(--text-main); border-color: var(--border-color); }
     .btn-dark:hover { background-color: #2a303c; }
 
+    @media (max-width: 560px) {
+      header { padding: 10px 14px; }
+      #shareTargetLabel { display: none; } /* другорядна підказка - звільняє місце на малих екранах */
+      .btn .btn-label { display: none; }   /* лишаємо тільки іконку, текст - через title/підказку */
+      .btn { padding: 7px 10px; }
+    }
+
     main {
       flex: 1;
       display: grid;
@@ -79,6 +96,24 @@
     }
     @media (max-width: 900px) {
       main { grid-template-columns: 1fr; }
+    }
+
+    /* ПК: панель "Учасники" завжди в полі зору, поки скролиться сценарій -
+       зручно перетягувати предмети, не шукаючи панель десь вище. Власний
+       скрол на випадок, якщо персонажів забагато й список не влазить у
+       висоту екрана (інакше нижні картки просто не можна було б побачити). */
+    @media (min-width: 901px) {
+      main > .panel:first-child {
+        position: sticky;
+        top: 16px;
+        max-height: calc(100vh - 32px);
+        overflow-y: auto;
+      }
+      main > .panel:first-child > .panel-header {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
     }
 
     .panel {
@@ -421,6 +456,65 @@
       z-index: 1000;
     }
     .chat-sidebar.open { transform: translateX(0); }
+
+    /* Модалка "Кому передати предмет" - з'являється на телефоні одразу
+       після вибору предмета (нативний drag&drop ненадійний на сенсорних
+       екранах), щоб не доводилось гортати до панелі учасників вручну. */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1100;
+      padding: 16px;
+    }
+    .modal-box {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 420px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+    .modal-header {
+      padding: 12px 16px;
+      background-color: rgba(0, 0, 0, 0.2);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 700;
+      color: var(--accent-gold);
+      gap: 10px;
+    }
+    .modal-body {
+      padding: 12px 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .modal-list-item {
+      background-color: var(--bg-element);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+    .modal-list-item:hover { background-color: #2a303c; }
+    .modal-item-meta { font-size: 0.75rem; color: var(--text-muted); }
+    .modal-empty { font-size: 0.85rem; color: var(--text-muted); padding: 8px 0; }
+
     .chat-header {
       padding: 14px 16px;
       border-bottom: 1px solid var(--border-color);
@@ -503,12 +597,12 @@
         <div style="font-size:0.75rem; color: var(--text-muted);">Код кімнати: <span id="roomCodeDisplay" style="font-family:monospace; font-weight:bold; color: var(--accent-gold);"></span></div>
       </div>
     </div>
-    <div style="display:flex; align-items:center; gap:8px;">
+    <div class="header-actions">
       <span id="shareTargetLabel" style="font-size:0.7rem; color: var(--text-muted); white-space:nowrap;" title="Куди зараз піде 'Поділитись' - міняється тим самим списком, що й у чаті">→ Усі</span>
-      <button onclick="toggleChat()" class="btn btn-dark">
-        <i class="fa-solid fa-comments"></i> Чат <span id="unreadBadge" style="display:none; color:#ef4444;">●</span>
+      <button onclick="toggleChat()" class="btn btn-dark" title="Чат">
+        <i class="fa-solid fa-comments"></i> <span class="btn-label">Чат</span> <span id="unreadBadge" style="display:none; color:#ef4444;">●</span>
       </button>
-      <button onclick="endSession()" class="btn btn-danger"><i class="fa-solid fa-stop"></i> Завершити сесію</button>
+      <button onclick="endSession()" class="btn btn-danger" title="Завершити сесію"><i class="fa-solid fa-stop"></i> <span class="btn-label">Завершити сесію</span></button>
     </div>
   </header>
 

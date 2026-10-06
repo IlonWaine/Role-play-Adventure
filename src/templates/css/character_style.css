@@ -399,7 +399,14 @@ body {
   color: var(--accent-gold);
 }
 
-.inventory-item.zero-qty {
+/* НЕ опускаємо opacity на весь .inventory-item - дочірній елемент не може
+   бути яскравішим за батьківський в CSS, тож кнопка "Видалити" тьмяніла б
+   разом з усім рядком і ставала ледь помітною. Тьмяним лишаємо тільки
+   назву/кількість/опис - кнопки дій (🔄 передати, 🗑️ видалити) завжди
+   повністю видимі, вони потрібні незалежно від кількості. */
+.inventory-item.zero-qty .inventory-item-name,
+.inventory-item.zero-qty .item-qty-controls,
+.inventory-item.zero-qty .inventory-item-desc {
   opacity: 0.55;
 }
 

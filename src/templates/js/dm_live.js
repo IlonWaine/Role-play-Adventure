@@ -359,7 +359,9 @@ function renderBlocksReadonly(blocks, container) {
 
         // Тап-альтернатива drag&drop для мобільних (native HTML5 drag&drop
         // ненадійний на сенсорних екранах). Тап по предмету виділяє його,
-        // повторний тап по тому ж предмету знімає виділення.
+        // повторний тап по тому ж предмету знімає виділення. На телефоні
+        // (вузький екран) одразу відкриваємо модалку зі списком персонажів,
+        // щоб не гортати вручну до панелі учасників.
         handle.addEventListener('click', () => {
           if (selectedItemForGiving === item) {
             clearItemSelection();
@@ -367,6 +369,7 @@ function renderBlocksReadonly(blocks, container) {
             clearItemSelection();
             selectedItemForGiving = item;
             handle.classList.add('selected');
+            if (isMobileLayout()) openGiveItemModal();
           }
         });
       });
@@ -455,6 +458,7 @@ function renderBlocksReadonly(blocks, container) {
             selectedItemForGiving = item;
             selectedItemIsShop = true;
             chip.classList.add('selected');
+            if (isMobileLayout()) openGiveItemModal();
           }
         });
       });
@@ -551,7 +555,68 @@ function setupItemDropZone(el) {
 function clearItemSelection() {
   selectedItemForGiving = null;
   selectedItemIsShop = false;
-  document.querySelectorAll('.item-chip.selected').forEach(c => c.classList.remove('selected'));
+  document.querySelectorAll('.item-chip.selected, .item-give-handle.selected').forEach(c => c.classList.remove('selected'));
+  closeGiveItemModal();
+}
+
+// Той самий злам екрана, що й для grid-макету main (320px + сценарій ->
+// один стовпець) - на ПК панель "Учасники" закріплена й завжди видно, тож
+// модалка там не потрібна; на вужчих екранах вона замінює ручне гортання.
+function isMobileLayout() {
+  return window.matchMedia('(max-width: 900px)').matches;
+}
+
+function openGiveItemModal() {
+  if (!selectedItemForGiving) return;
+  closeGiveItemModal();
+
+  const participants = sessionData.participants || [];
+  const rows = participants.length
+    ? participants.map(p => `
+        <div class="modal-list-item" data-char-id="${p.id}">
+          <span>${p.name}</span>
+          <span class="modal-item-meta">${p.role || ''}</span>
+        </div>
+      `).join('')
+    : '<p class="modal-empty">У цій історії ще немає прив\'язаних персонажів.</p>';
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'giveItemModal';
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <div class="modal-header">
+        <span>🎁 Кому передати «${selectedItemForGiving.name}»?</span>
+        <button class="btn-modal-close" id="closeGiveItemModal">&times;</button>
+      </div>
+      <div class="modal-body">${rows}</div>
+    </div>
+  `;
+
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) clearItemSelection();
+  });
+  overlay.querySelector('#closeGiveItemModal').addEventListener('click', () => clearItemSelection());
+  overlay.querySelectorAll('.modal-list-item[data-char-id]').forEach(row => {
+    row.addEventListener('click', () => {
+      const targetCharId = parseInt(row.dataset.charId);
+      const item = selectedItemForGiving;
+      const isShop = selectedItemIsShop;
+      clearItemSelection();
+      if (isShop) {
+        buyItemForCharacter(targetCharId, item);
+      } else {
+        giveItemToCharacter(targetCharId, item);
+      }
+    });
+  });
+
+  document.body.appendChild(overlay);
+}
+
+function closeGiveItemModal() {
+  const modal = document.getElementById('giveItemModal');
+  if (modal) modal.remove();
 }
 
 // =============================================================================
@@ -969,6 +1034,34 @@ function openImageLightbox(url) {
   overlay.innerHTML = `<img src="${url}" class="lightbox-img" alt="Перегляд зображення">`;
   overlay.addEventListener('click', () => overlay.remove());
   document.body.appendChild(overlay);
+}
+
+// --- МОБІЛЬНІ СВАЙПИ (SWIPE TO OPEN/CLOSE CHAT) - так само, як у гравців
+// в character_logic.js, лише під id/класи цієї сторінки (#chatSidebar.open
+// замість #app-layout.chat-open).
+let touchStartX = 0;
+let touchEndX = 0;
+
+document.addEventListener('touchstart', e => {
+  touchStartX = e.changedTouches[0].screenX;
+}, false);
+
+document.addEventListener('touchend', e => {
+  touchEndX = e.changedTouches[0].screenX;
+  handleChatSwipe();
+}, false);
+
+function handleChatSwipe() {
+  const sidebar = document.getElementById('chatSidebar');
+  if (!sidebar) return;
+  const swipeDistance = touchStartX - touchEndX;
+
+  if (swipeDistance > 70 && !sidebar.classList.contains('open')) {
+    sidebar.classList.add('open');
+    document.getElementById('unreadBadge').style.display = 'none';
+  } else if (swipeDistance < -70 && sidebar.classList.contains('open')) {
+    sidebar.classList.remove('open');
+  }
 }
 
 init();
